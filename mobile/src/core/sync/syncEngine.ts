@@ -2,6 +2,10 @@ import { obtenerBaseDatos } from '../database/db';
 import { ItemColaSincronizacion, ResumenSincronizacion, EntidadSincronizacion, AccionSincronizacion } from '../types/database';
 import { generarUUID } from '../utils/uuid';
 
+export const CONFIG_SYNC = {
+  BACKEND_URL: 'http://localhost:8080/api/v1',
+};
+
 type EscuchadorRed = (estaEnLinea: boolean) => void;
 
 class MotorSincronizacion {
@@ -68,11 +72,11 @@ class MotorSincronizacion {
   }
 
   /**
-   * Dispara el proceso de sincronización con el backend
+   * Dispara el proceso de sincronización con el backend Spring Boot
    */
-  public async dispararSincronizacion(): Promise<void> {
-    if (this.estaSincronizando || !this.estaEnLinea) {
-      return;
+  public async dispararSincronizacion(): Promise<{ exito: boolean; procesados: number; mensaje: string }> {
+    if (this.estaSincronizando) {
+      return { exito: false, procesados: 0, mensaje: 'Sincronización en curso...' };
     }
 
     this.estaSincronizando = true;
@@ -84,15 +88,75 @@ class MotorSincronizacion {
 
       if (itemsPendientes.length === 0) {
         this.estaSincronizando = false;
-        return;
+        return { exito: true, procesados: 0, mensaje: 'La aplicación ya está al día.' };
       }
 
-      console.log(`[MotorSincronizacion] Se encontraron ${itemsPendientes.length} registros pendientes por sincronizar.`);
+      console.log(`[MotorSincronizacion] Enviando ${itemsPendientes.length} registros al backend Spring Boot...`);
 
-      // TODO: Conectar con el endpoint Spring Boot /api/v1/sync en Dokploy cuando el backend esté activo.
+      const mutaciones = itemsPendientes.map((item) => {
+        let payloadObj = {};
+        try {
+          payloadObj = typeof item.payload === 'string' ? JSON.parse(item.payload) : item.payload;
+        } catch {
+          payloadObj = item.payload;
+        }
 
-    } catch (error) {
-      console.error('[MotorSincronizacion] Error al procesar la cola de sincronización:', error);
+        return {
+          id: item.id,
+          tipoEntidad: item.tipoEntidad,
+          operacion: item.accion,
+          payload: payloadObj,
+          fechaCreacion: item.fechaCreacion,
+        };
+      });
+
+      const response = await fetch(`${CONFIG_SYNC.BACKEND_URL}/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tiendaId: 'tienda-local',
+          mutaciones,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`El servidor backend respondió con código HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      let procesadosExitosos = 0;
+
+      if (data.resultados && Array.isArray(data.resultados)) {
+        for (const res of data.resultados) {
+          if (res.estado === 'SINCRONIZADO') {
+            await db.runAsync(`DELETE FROM cola_sincronizacion WHERE id = ?`, [res.id]);
+            procesadosExitosos++;
+          } else {
+            await db.runAsync(
+              `UPDATE cola_sincronizacion SET estado = 'ERROR', mensaje_error = ?, numero_reintentos = numero_reintentos + 1 WHERE id = ?`,
+              [res.mensajeError || 'Error en servidor', res.id]
+            );
+          }
+        }
+      }
+
+      const ahoraIso = new Date().toISOString();
+      await db.runAsync(`UPDATE tiendas SET ultima_sincronizacion = ?`, [ahoraIso]);
+
+      return {
+        exito: true,
+        procesados: procesadosExitosos,
+        mensaje: `Sincronización exitosa: ${procesadosExitosos} registros guardados en la nube.`,
+      };
+    } catch (error: any) {
+      console.warn('[MotorSincronizacion] Modo Offline: No se pudo conectar con el backend:', error.message || error);
+      return {
+        exito: false,
+        procesados: 0,
+        mensaje: 'Modo Offline: Operaciones guardadas localmente. Se sincronizarán al conectar con el backend.',
+      };
     } finally {
       this.estaSincronizando = false;
     }

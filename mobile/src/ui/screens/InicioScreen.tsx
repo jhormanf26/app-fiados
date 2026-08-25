@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { Text, Card, Button, Divider, Chip, ActivityIndicator, IconButton, ProgressBar } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
@@ -121,9 +121,21 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return () => desuscribir();
   }, []);
 
-  const onRefresh = () => {
+  const handleSincronizarManual = async () => {
     setRefrescando(true);
-    cargarDatos();
+    try {
+      const res = await motorSincronizacion.dispararSincronizacion();
+      Alert.alert(res.exito ? '🔄 Sincronización' : '⚠️ Modo Offline', res.mensaje);
+    } catch (e) {
+      console.warn('Error al sincronizar:', e);
+    } finally {
+      await cargarDatos();
+      setRefrescando(false);
+    }
+  };
+
+  const onRefresh = () => {
+    handleSincronizarManual();
   };
 
   if (cargando) {
@@ -146,7 +158,7 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <View style={[styles.topHeaderBar, { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }]}>
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={cargarDatos}
+          onPress={handleSincronizarManual}
           style={{ flexDirection: 'row', alignItems: 'center' }}
         >
           <IconButton
@@ -162,6 +174,7 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         <Chip
           icon="check-circle"
+          onPress={handleSincronizarManual}
           style={{ backgroundColor: '#e8f5e9' }}
           textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
         >

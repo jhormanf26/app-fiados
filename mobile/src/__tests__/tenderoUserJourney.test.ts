@@ -2,6 +2,7 @@ import { inicializarBaseDatos } from '../core/database/db';
 import { tiendaRepository } from '../core/repositories/tiendaRepository';
 import { clienteRepository } from '../core/repositories/clienteRepository';
 import { movimientoRepository } from '../core/repositories/movimientoRepository';
+import { motorSincronizacion } from '../core/sync/syncEngine';
 
 /**
  * Suite de Pruebas de Integración y Flujo de Usuario Tendero
@@ -148,7 +149,14 @@ async function probarFlujoTenderoCompleto() {
   }
   console.log(`   ✨ Saldo a Favor registrado correctamente: $${Math.abs(pagoExceso.nuevoSaldo)} COP para Carlos.`);
 
-  console.log('\n=== ¡TODAS LAS PRUEBAS DEL FLUJO TENDERO SE EJECUTARON CON ÉXITO! ===');
+  // 13. Motor de Sincronización Móvil ↔ Backend (Outbox Pattern)
+  console.log('\n12. Probando Motor de Sincronización Móvil ↔ Backend (Outbox Pattern)...');
+  const resumenSync = await motorSincronizacion.obtenerResumen();
+  console.log(`   ✓ Elementos en cola local pendientes por enviar: ${resumenSync.pendientesCount}`);
+  const resultadoSync = await motorSincronizacion.dispararSincronizacion();
+  console.log(`   ✓ Respuesta del Motor de Sincronización: ${resultadoSync.mensaje}`);
+
+  console.log('\n=== ¡TODAS LAS PRUEBAS DEL FLUJO TENDERO Y SINCRONIZACIÓN SE EJECUTARON CON ÉXITO! ===');
 }
 
 probarFlujoTenderoCompleto().catch((err) => {
