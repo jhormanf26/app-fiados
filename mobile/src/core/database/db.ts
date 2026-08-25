@@ -33,10 +33,37 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
         const guardado = window.localStorage.getItem(NOMBRE_BD);
         if (guardado) {
           this.tablas = JSON.parse(guardado);
+          this.sanitizarTablas();
         }
       }
     } catch (e) {
       console.warn('[WebDB] Error al cargar localStorage:', e);
+    }
+  }
+
+  private sanitizarTablas() {
+    if (Array.isArray(this.tablas.movimientos)) {
+      this.tablas.movimientos = this.tablas.movimientos.map((m) => {
+        let tipoFixed = m.tipo;
+        let montoFixed = m.monto;
+        let fechaFixed = m.fecha_creacion;
+
+        if (typeof tipoFixed === 'number' || (tipoFixed !== 'FIADO' && tipoFixed !== 'PAGO' && tipoFixed !== 'ANULACION')) {
+          montoFixed = Number(tipoFixed) || Number(m.monto) || 0;
+          tipoFixed = 'FIADO';
+        }
+
+        if (!fechaFixed || typeof fechaFixed !== 'string' || fechaFixed.includes('undefined') || fechaFixed.includes('Invalid')) {
+          fechaFixed = new Date().toISOString();
+        }
+
+        return {
+          ...m,
+          tipo: tipoFixed,
+          monto: Number(montoFixed) || 0,
+          fecha_creacion: fechaFixed,
+        };
+      });
     }
   }
 
@@ -130,17 +157,28 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
         existente.fecha_actualizacion = params[7];
       }
     } else if (cleanSql.startsWith('INSERT INTO MOVIMIENTOS')) {
+      const es10Params = params.length >= 10;
+      const tipoVal = es10Params
+        ? params[3]
+        : cleanSql.includes("'FIADO'") ? 'FIADO' : cleanSql.includes("'PAGO'") ? 'PAGO' : 'FIADO';
+      const montoVal = es10Params ? params[4] : params[3];
+      const descVal = es10Params ? params[5] : params[4];
+      const saldoAntVal = es10Params ? params[6] : params[5];
+      const nuevoSaldoVal = es10Params ? params[7] : params[6];
+      const estadoSyncVal = es10Params ? params[8] : 'PENDIENTE';
+      const fechaCreacionVal = es10Params ? params[9] : params[7] || new Date().toISOString();
+
       const mov = {
         id: params[0],
         tienda_id: params[1],
         cliente_id: params[2],
-        tipo: params[3],
-        monto: params[4],
-        descripcion: params[5],
-        saldo_anterior: params[6],
-        nuevo_saldo: params[7],
-        estado_sincronizacion: params[8],
-        fecha_creacion: params[9],
+        tipo: tipoVal,
+        monto: Number(montoVal) || 0,
+        descripcion: descVal,
+        saldo_anterior: Number(saldoAntVal) || 0,
+        nuevo_saldo: Number(nuevoSaldoVal) || 0,
+        estado_sincronizacion: estadoSyncVal,
+        fecha_creacion: fechaCreacionVal,
       };
       this.tablas.movimientos.unshift(mov);
     } else if (cleanSql.startsWith('UPDATE MOVIMIENTOS SET TIPO')) {

@@ -55,8 +55,8 @@ export class MovimientoRepository {
       // 1. Insertar Movimiento
       await db.runAsync(
         `INSERT INTO movimientos (id, tienda_id, cliente_id, tipo, monto, descripcion, saldo_anterior, nuevo_saldo, estado_sincronizacion, fecha_creacion)
-         VALUES (?, ?, ?, 'FIADO', ?, ?, ?, ?, 'PENDIENTE', ?)`,
-        [id, tiendaId, clienteId, monto, descripcion ?? null, saldoAnterior, nuevoSaldo, ahora]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, tiendaId, clienteId, 'FIADO', monto, descripcion ?? null, saldoAnterior, nuevoSaldo, 'PENDIENTE', ahora]
       );
 
       // 2. Actualizar Saldo del Cliente
@@ -116,8 +116,8 @@ export class MovimientoRepository {
       // 1. Insertar Movimiento
       await db.runAsync(
         `INSERT INTO movimientos (id, tienda_id, cliente_id, tipo, monto, descripcion, saldo_anterior, nuevo_saldo, estado_sincronizacion, fecha_creacion)
-         VALUES (?, ?, ?, 'PAGO', ?, ?, ?, ?, 'PENDIENTE', ?)`,
-        [id, tiendaId, clienteId, monto, descripcion ?? null, saldoAnterior, nuevoSaldo, ahora]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, tiendaId, clienteId, 'PAGO', monto, descripcion ?? null, saldoAnterior, nuevoSaldo, 'PENDIENTE', ahora]
       );
 
       // 2. Actualizar Saldo del Cliente
