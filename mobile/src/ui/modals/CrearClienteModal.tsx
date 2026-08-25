@@ -113,6 +113,7 @@ export const CrearClienteModal: React.FC<Props> = ({
             setNombre(val);
             setError(null);
           }}
+          textColor="#ffffff"
           mode="outlined"
           style={styles.input}
           left={<TextInput.Icon icon="account" />}
@@ -126,6 +127,7 @@ export const CrearClienteModal: React.FC<Props> = ({
             setError(null);
           }}
           keyboardType="numeric"
+          textColor="#ffffff"
           mode="outlined"
           style={styles.input}
           left={<TextInput.Icon icon="card-account-details" />}
@@ -139,6 +141,7 @@ export const CrearClienteModal: React.FC<Props> = ({
             setError(null);
           }}
           keyboardType="phone-pad"
+          textColor="#ffffff"
           mode="outlined"
           style={styles.input}
           left={<TextInput.Icon icon="phone" />}
@@ -147,8 +150,11 @@ export const CrearClienteModal: React.FC<Props> = ({
         <TextInput
           label="Correo Electrónico (para notificaciones)"
           value={correo}
-          onChangeText={setCorreo}
+          onChangeText={(val) => setCorreo(val)}
           keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          textColor="#ffffff"
           mode="outlined"
           style={styles.input}
           left={<TextInput.Icon icon="email" />}
@@ -159,6 +165,7 @@ export const CrearClienteModal: React.FC<Props> = ({
           value={limitePersonalizado}
           onChangeText={setLimitePersonalizado}
           keyboardType="numeric"
+          textColor="#ffffff"
           mode="outlined"
           style={styles.input}
           placeholder="Dejar vacío para usar el predeterminado"

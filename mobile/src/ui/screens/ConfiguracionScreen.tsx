@@ -107,6 +107,7 @@ export const ConfiguracionScreen: React.FC = () => {
               label="Nombre de la Tienda *"
               value={nombre}
               onChangeText={setNombre}
+              textColor="#ffffff"
               mode="outlined"
               style={styles.input}
               left={<TextInput.Icon icon="store" />}
@@ -116,6 +117,7 @@ export const ConfiguracionScreen: React.FC = () => {
               label="Nombre del Propietario *"
               value={nombrePropietario}
               onChangeText={setNombrePropietario}
+              textColor="#ffffff"
               mode="outlined"
               style={styles.input}
               left={<TextInput.Icon icon="account" />}
@@ -126,6 +128,7 @@ export const ConfiguracionScreen: React.FC = () => {
               value={documentoPropietario}
               onChangeText={setDocumentoPropietario}
               keyboardType="numeric"
+              textColor="#ffffff"
               mode="outlined"
               style={styles.input}
               left={<TextInput.Icon icon="card-account-details" />}
@@ -136,6 +139,7 @@ export const ConfiguracionScreen: React.FC = () => {
               value={telefono}
               onChangeText={setTelefono}
               keyboardType="phone-pad"
+              textColor="#ffffff"
               mode="outlined"
               style={styles.input}
               left={<TextInput.Icon icon="phone" />}
@@ -146,6 +150,9 @@ export const ConfiguracionScreen: React.FC = () => {
               value={correo}
               onChangeText={setCorreo}
               keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              textColor="#ffffff"
               mode="outlined"
               style={styles.input}
               left={<TextInput.Icon icon="email" />}
@@ -155,6 +162,7 @@ export const ConfiguracionScreen: React.FC = () => {
               label="Dirección (opcional)"
               value={direccion}
               onChangeText={setDireccion}
+              textColor="#ffffff"
               mode="outlined"
               style={styles.input}
               left={<TextInput.Icon icon="map-marker" />}
@@ -164,6 +172,7 @@ export const ConfiguracionScreen: React.FC = () => {
               label="Ciudad / Municipio (opcional)"
               value={ciudad}
               onChangeText={setCiudad}
+              textColor="#ffffff"
               mode="outlined"
               style={styles.input}
               left={<TextInput.Icon icon="city" />}
