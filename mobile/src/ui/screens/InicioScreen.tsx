@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, RefreshControl } from 'react-native';
-import { Text, Card, Button, Divider, Chip, ActivityIndicator, IconButton } from 'react-native-paper';
+import { Text, Card, Button, Divider, Chip, ActivityIndicator, IconButton, ProgressBar } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
+import { movimientoRepository } from '../../core/repositories/movimientoRepository';
 import { motorSincronizacion } from '../../core/sync/syncEngine';
 import { Tienda, ResumenSincronizacion } from '../../core/types/database';
 import { APP_VERSION } from '../../core/constants/version';
@@ -14,6 +15,8 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { isDarkMode, colors } = useAppTheme();
   const [tienda, setTienda] = useState<Tienda | null>(null);
   const [deudaTotal, setDeudaTotal] = useState<number>(0);
+  const [totalFiado, setTotalFiado] = useState<number>(0);
+  const [totalRecuperado, setTotalRecuperado] = useState<number>(0);
   const [conteoDeudores, setConteoDeudores] = useState<number>(0);
   const [totalClientes, setTotalClientes] = useState<number>(0);
   const [cargando, setCargando] = useState<boolean>(true);
@@ -48,6 +51,11 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       const sumaDeudas = clientes.reduce((acc, c) => acc + c.saldoActual, 0);
       setDeudaTotal(sumaDeudas);
+
+      // Cargar Resumen de Cartera (Total Fiado vs Total Recuperado en Pagos)
+      const cartera = await movimientoRepository.obtenerResumenCartera(t.id);
+      setTotalFiado(cartera.totalFiado);
+      setTotalRecuperado(cartera.totalRecuperado);
 
       const resSync = await motorSincronizacion.obtenerResumen();
       setSincronizacion(resSync);
@@ -86,6 +94,11 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       </View>
     );
   }
+
+  // Cálculos proporcionales de las barras de progreso del Resumen de Cartera
+  const maxBase = Math.max(totalFiado, totalRecuperado, 1);
+  const progresoFiado = Math.min(totalFiado / maxBase, 1);
+  const progresoRecuperado = Math.min(totalRecuperado / maxBase, 1);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -153,13 +166,13 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/* Tarjeta Ejecutiva Financiera TOTAL POR COBRAR */}
         <Card style={[styles.cardTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
-          <Card.Content style={{ paddingVertical: 20 }}>
+          <Card.Content style={{ paddingVertical: 18 }}>
             <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
               TOTAL POR COBRAR
             </Text>
 
             <Text variant="displayMedium" style={styles.montoTotalRojo}>
-              ${deudaTotal.toLocaleString()}
+              ${(deudaTotal ?? 0).toLocaleString()}
             </Text>
 
             <Divider style={styles.cardDivider} />
@@ -176,8 +189,51 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </Text>
 
               <Text variant="titleMedium" style={{ color: colors.text, fontWeight: 'bold' }}>
-                ${(tienda?.limiteCreditoPredeterminado || 100000).toLocaleString()}
+                ${((tienda?.limiteCreditoPredeterminado || 100000) ?? 0).toLocaleString()}
               </Text>
+            </View>
+          </Card.Content>
+        </Card>
+
+        {/* Tarjeta RESUMEN DE CARTERA (Total Fiado vs Total Recuperado) */}
+        <Card style={[styles.cardTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
+          <Card.Content style={{ paddingVertical: 18 }}>
+            <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12 }}>
+              RESUMEN DE CARTERA
+            </Text>
+
+            {/* Fila 1: Total Fiado */}
+            <View style={styles.carteraItem}>
+              <View style={styles.carteraHeaderRow}>
+                <Text variant="bodyMedium" style={{ color: colors.text, fontWeight: '500' }}>
+                  Total Fiado
+                </Text>
+                <Text variant="titleMedium" style={{ color: '#ef5350', fontWeight: 'bold' }}>
+                  ${(totalFiado ?? 0).toLocaleString()}
+                </Text>
+              </View>
+              <ProgressBar
+                progress={progresoFiado}
+                color="#ef5350"
+                style={{ height: 8, borderRadius: 4, marginTop: 4, backgroundColor: isDarkMode ? '#3b1c1c' : '#fde8e8' }}
+              />
+            </View>
+
+            {/* Fila 2: Total Recuperado */}
+            <View style={[styles.carteraItem, { marginTop: 14 }]}>
+              <View style={styles.carteraHeaderRow}>
+                <Text variant="bodyMedium" style={{ color: colors.text, fontWeight: '500' }}>
+                  Total Recuperado
+                </Text>
+                <Text variant="titleMedium" style={{ color: '#2e7d32', fontWeight: 'bold' }}>
+                  ${(totalRecuperado ?? 0).toLocaleString()}
+                </Text>
+              </View>
+              <ProgressBar
+                progress={progresoRecuperado}
+                color="#2e7d32"
+                style={{ height: 8, borderRadius: 4, marginTop: 4, backgroundColor: isDarkMode ? '#1b3b1c' : '#e8f5e9' }}
+              />
             </View>
           </Card.Content>
         </Card>
@@ -283,18 +339,26 @@ const styles = StyleSheet.create({
   },
   cardTotal: {
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
   },
   montoTotalRojo: {
     color: '#c62828',
     fontWeight: 'bold',
-    marginVertical: 8,
+    marginVertical: 6,
   },
   cardDivider: {
-    marginVertical: 12,
+    marginVertical: 10,
   },
   metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  carteraItem: {
+    marginVertical: 2,
+  },
+  carteraHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

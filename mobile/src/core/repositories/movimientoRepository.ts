@@ -226,6 +226,25 @@ export class MovimientoRepository {
       fechaSincronizacion: row.fecha_sincronizacion ?? undefined,
     }));
   }
+
+  /**
+   * Obtiene el resumen de cartera (Total Fiado acumulado vs Total Recuperado en Pagos)
+   */
+  public async obtenerResumenCartera(tiendaId: string): Promise<{ totalFiado: number; totalRecuperado: number }> {
+    const db = obtenerBaseDatos();
+    const resFiado = await db.getFirstAsync<{ total: number }>(
+      `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'FIADO'`,
+      [tiendaId]
+    );
+    const resPago = await db.getFirstAsync<{ total: number }>(
+      `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'PAGO'`,
+      [tiendaId]
+    );
+    return {
+      totalFiado: resFiado?.total ?? 0,
+      totalRecuperado: resPago?.total ?? 0,
+    };
+  }
 }
 
 export const movimientoRepository = new MovimientoRepository();
