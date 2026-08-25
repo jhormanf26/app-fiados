@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, Divider, ActivityIndicator, IconButton } from 'react-native-paper';
+import { Text, TextInput, Button, Card, Divider, ActivityIndicator, IconButton, Chip } from 'react-native-paper';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
 import { movimientoRepository } from '../../core/repositories/movimientoRepository';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { Cliente, Movimiento, Tienda } from '../../core/types/database';
 import { useAppTheme } from '../theme/ThemeContext';
+
+function formatearUltimaSincronizacion(isoString?: string): string {
+  if (!isoString) return 'Recién actualizado';
+  try {
+    const fecha = new Date(isoString);
+    const ahora = new Date();
+    const difMs = ahora.getTime() - fecha.getTime();
+    const difMin = Math.floor(difMs / (1000 * 60));
+
+    if (difMin < 1) return 'Hace un momento';
+    if (difMin < 60) return `Hace ${difMin} min`;
+    return `${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } catch (e) {
+    return 'Recién actualizado';
+  }
+}
 
 export const ConsultaClienteScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { isDarkMode, colors } = useAppTheme();
@@ -164,10 +180,22 @@ export const ConsultaClienteScreen: React.FC<{ navigation: any }> = ({ navigatio
         {buscado && !cargando && clienteEncontrado && (
           <Card style={[styles.cardResultado, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
             <Card.Content style={{ paddingVertical: 18 }}>
-              {/* Encabezado Resultado */}
-              <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
-                {tiendaCliente?.nombre || 'Supermercado La Esperanza'}
-              </Text>
+              {/* Encabezado Resultado con Marca de Última Sincronización */}
+              <View style={styles.storeHeaderRow}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
+                    {tiendaCliente?.nombre || 'Supermercado La Esperanza'}
+                  </Text>
+                </View>
+
+                <Chip
+                  icon="sync"
+                  style={{ backgroundColor: '#e8f5e9' }}
+                  textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 10 }}
+                >
+                  Sync: {formatearUltimaSincronizacion(tiendaCliente?.fechaActualizacion)}
+                </Chip>
+              </View>
 
               <Text variant="headlineSmall" style={{ color: colors.text, fontWeight: 'bold', marginVertical: 4 }}>
                 {clienteEncontrado.nombre}
@@ -176,6 +204,14 @@ export const ConsultaClienteScreen: React.FC<{ navigation: any }> = ({ navigatio
               <Text variant="bodySmall" style={{ color: colors.textSecondary }}>
                 🪪 Documento: {clienteEncontrado.numeroDocumento}
               </Text>
+
+              {/* Subtítulo informativo de Sincronización */}
+              <View style={styles.syncInfoBanner}>
+                <Text style={{ fontSize: 13 }}>🔄</Text>
+                <Text style={{ fontSize: 11, color: '#2e7d32', fontWeight: '600' }}>
+                  Datos actualizados al momento de la última sincronización de la tienda.
+                </Text>
+              </View>
 
               <Divider style={{ marginVertical: 14 }} />
 
@@ -283,6 +319,21 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 20,
     borderWidth: 1,
+  },
+  storeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  syncInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#e8f5e9',
+    padding: 8,
+    borderRadius: 10,
+    marginTop: 10,
   },
   movRow: {
     flexDirection: 'row',
