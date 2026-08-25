@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Modal, Portal, Text, TextInput, Button, HelperText, SegmentedButtons } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, Portal, Text, TextInput, Button, HelperText, SegmentedButtons, Menu, Divider } from 'react-native-paper';
 import { movimientoRepository } from '../../core/repositories/movimientoRepository';
+import { clienteRepository } from '../../core/repositories/clienteRepository';
+import { Cliente } from '../../core/types/database';
+import { useAppTheme } from '../theme/ThemeContext';
 
 interface Props {
   visible: boolean;
   onDismiss: () => void;
   tiendaId: string;
-  clienteId: string;
-  nombreCliente: string;
+  clienteId?: string;
+  nombreCliente?: string;
   onSuccess: () => void;
 }
 
@@ -16,20 +19,63 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
   visible,
   onDismiss,
   tiendaId,
-  clienteId,
-  nombreCliente,
+  clienteId: propClienteId,
+  nombreCliente: propNombreCliente,
   onSuccess,
 }) => {
+  const { colors, isDarkMode } = useAppTheme();
   const [tipo, setTipo] = useState<'FIADO' | 'PAGO'>('FIADO');
   const [monto, setMonto] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [alertaLimite, setAlertaLimite] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+
+  // Estado para selección de cliente cuando se abre desde InicioScreen
+  const [listaClientes, setListaClientes] = useState<Cliente[]>([]);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+  const [menuClientesVisible, setMenuClientesVisible] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setError(null);
+      setMonto('');
+      setDescripcion('');
+
+      if (propClienteId && propNombreCliente) {
+        setClienteSeleccionado({
+          id: propClienteId,
+          tiendaId,
+          nombre: propNombreCliente,
+          numeroDocumento: '',
+          telefono: '',
+          saldoActual: 0,
+          notificacionesAutorizadas: true,
+          correoVerificado: false,
+          fechaCreacion: '',
+          fechaActualizacion: '',
+        });
+      } else if (tiendaId) {
+        // Cargar lista de clientes para la tienda
+        clienteRepository.obtenerClientes(tiendaId).then((clientes) => {
+          setListaClientes(clientes);
+          if (clientes.length > 0) {
+            setClienteSeleccionado(clientes[0]);
+          } else {
+            setClienteSeleccionado(null);
+          }
+        });
+      }
+    }
+  }, [visible, propClienteId, propNombreCliente, tiendaId]);
 
   const handleGuardar = async () => {
     setError(null);
-    setAlertaLimite(null);
+
+    const targetClienteId = propClienteId || clienteSeleccionado?.id;
+    if (!targetClienteId) {
+      setError('Por favor selecciona un cliente para registrar el movimiento.');
+      return;
+    }
 
     const valorMonto = parseFloat(monto.replace(/[^0-9.]/g, ''));
     if (isNaN(valorMonto) || valorMonto <= 0) {
@@ -40,22 +86,16 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
     setCargando(true);
     try {
       if (tipo === 'FIADO') {
-        const resultado = await movimientoRepository.agregarFiado(
+        await movimientoRepository.agregarFiado(
           tiendaId,
-          clienteId,
+          targetClienteId,
           valorMonto,
           descripcion.trim() || undefined
         );
-
-        if (resultado.limiteSuperado) {
-          setAlertaLimite(
-            `⚠️ ¡Atención! El nuevo saldo sobrepasa el límite de crédito ($${resultado.limiteEfectivo.toLocaleString()}).`
-          );
-        }
       } else {
         await movimientoRepository.agregarPago(
           tiendaId,
-          clienteId,
+          targetClienteId,
           valorMonto,
           descripcion.trim() || undefined
         );
@@ -72,16 +112,77 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
     }
   };
 
+  const requiereSelector = !propClienteId;
+
   return (
     <Portal>
-      <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.container}>
-        <Text variant="titleLarge" style={styles.titulo}>
+      <Modal
+        visible={visible}
+        onDismiss={onDismiss}
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff' },
+        ]}
+      >
+        <Text variant="titleLarge" style={[styles.titulo, { color: colors.text }]}>
           {tipo === 'FIADO' ? '🛒 Registrar Nuevo Fiado' : '💵 Registrar Pago / Abono'}
         </Text>
-        <Text variant="bodyMedium" style={styles.subtitulo}>
-          Cliente: <Text style={{ fontWeight: 'bold', color: '#bb86fc' }}>{nombreCliente}</Text>
-        </Text>
 
+        {/* Selector de Cliente o Cliente Fijo */}
+        {requiereSelector ? (
+          <View style={styles.selectorContainer}>
+            <Text variant="labelLarge" style={{ color: colors.textSecondary, marginBottom: 4 }}>
+              Seleccionar Cliente *
+            </Text>
+            {listaClientes.length === 0 ? (
+              <Text variant="bodySmall" style={{ color: '#ef5350' }}>
+                No tienes clientes registrados aún. Regístralos en la sección Clientes.
+              </Text>
+            ) : (
+              <Menu
+                visible={menuClientesVisible}
+                onDismiss={() => setMenuClientesVisible(false)}
+                anchor={
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setMenuClientesVisible(true)}
+                    style={[
+                      styles.pickerButton,
+                      {
+                        backgroundColor: isDarkMode ? '#2c2c2c' : '#f0f0f0',
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 15 }}>
+                      👤 {clienteSeleccionado ? `${clienteSeleccionado.nombre} (Doc: ${clienteSeleccionado.numeroDocumento})` : 'Seleccionar...'}
+                    </Text>
+                    <Text style={{ color: colors.primary }}>▼</Text>
+                  </TouchableOpacity>
+                }
+              >
+                <ScrollView style={{ maxHeight: 200 }}>
+                  {listaClientes.map((c) => (
+                    <Menu.Item
+                      key={c.id}
+                      onPress={() => {
+                        setClienteSeleccionado(c);
+                        setMenuClientesVisible(false);
+                      }}
+                      title={`${c.nombre} (Deuda: $${c.saldoActual.toLocaleString()})`}
+                    />
+                  ))}
+                </ScrollView>
+              </Menu>
+            )}
+          </View>
+        ) : (
+          <Text variant="bodyMedium" style={styles.subtitulo}>
+            Cliente: <Text style={{ fontWeight: 'bold', color: colors.primary }}>{propNombreCliente}</Text>
+          </Text>
+        )}
+
+        {/* Pestañas Fiado / Pago */}
         <SegmentedButtons
           value={tipo}
           onValueChange={(val) => setTipo(val as 'FIADO' | 'PAGO')}
@@ -92,36 +193,37 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
           style={styles.segmented}
         />
 
+        {/* Monto ($) */}
         <TextInput
-          label="Monto ($)"
+          label="Monto ($) *"
           value={monto}
           onChangeText={(val) => {
             setMonto(val);
             setError(null);
           }}
           keyboardType="numeric"
-          textColor="#ffffff"
-          contentStyle={{ color: '#ffffff' }}
-          activeOutlineColor="#bb86fc"
-          outlineColor="#555555"
+          textColor={colors.text}
+          contentStyle={{ color: colors.text }}
+          activeOutlineColor={colors.primary}
+          outlineColor={colors.border}
           mode="outlined"
-          style={styles.input}
-          left={<TextInput.Icon icon="currency-usd" color="#bb86fc" />}
+          style={[styles.input, { backgroundColor: colors.inputBackground }]}
+          left={<TextInput.Affix text="$ " />}
         />
 
+        {/* Descripción */}
         <TextInput
           label="Descripción u observación (opcional)"
           value={descripcion}
           onChangeText={setDescripcion}
-          textColor="#ffffff"
-          contentStyle={{ color: '#ffffff' }}
-          activeOutlineColor="#bb86fc"
-          outlineColor="#555555"
+          textColor={colors.text}
+          contentStyle={{ color: colors.text }}
+          activeOutlineColor={colors.primary}
+          outlineColor={colors.border}
           mode="outlined"
-          style={styles.input}
-          placeholder={tipo === 'FIADO' ? 'Ej: Mercado, leche y pan' : 'Ej: Abono quincenal'}
-          placeholderTextColor="#888888"
-          left={<TextInput.Icon icon="note-text-outline" color="#bb86fc" />}
+          style={[styles.input, { backgroundColor: colors.inputBackground }]}
+          placeholder={tipo === 'FIADO' ? 'Ej: Mercado, leche y arroz' : 'Ej: Abono quincenal'}
+          placeholderTextColor={colors.textSecondary}
         />
 
         {error && (
@@ -130,22 +232,19 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
           </HelperText>
         )}
 
-        {alertaLimite && (
-          <HelperText type="error" visible={true} style={styles.alerta}>
-            {alertaLimite}
-          </HelperText>
-        )}
-
+        {/* Botones de Acción */}
         <View style={styles.btnRow}>
           <Button mode="outlined" onPress={onDismiss} style={styles.btn}>
             Cancelar
           </Button>
+
           <Button
             mode="contained"
             onPress={handleGuardar}
             loading={cargando}
-            disabled={cargando}
-            buttonColor={tipo === 'FIADO' ? '#c62828' : '#2e7d32'}
+            disabled={cargando || (requiereSelector && !clienteSeleccionado)}
+            buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+            textColor={isDarkMode ? '#000000' : '#ffffff'}
             style={styles.btn}
           >
             Guardar
@@ -158,32 +257,40 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1e1e1e',
     padding: 20,
     margin: 20,
     borderRadius: 16,
   },
   titulo: {
-    color: '#ffffff',
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 12,
   },
   subtitulo: {
     color: '#b0bec5',
     marginBottom: 16,
   },
+  selectorContainer: {
+    marginBottom: 16,
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   segmented: {
     marginBottom: 16,
   },
   btnFiado: {
-    backgroundColor: '#c62828',
+    backgroundColor: '#ef5350',
   },
   btnPago: {
-    backgroundColor: '#2e7d32',
+    backgroundColor: '#81c784',
   },
   input: {
     marginBottom: 12,
-    backgroundColor: '#121212',
   },
   btnRow: {
     flexDirection: 'row',
@@ -192,10 +299,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   btn: {
-    borderRadius: 8,
-  },
-  alerta: {
-    color: '#ffb74d',
-    fontSize: 13,
+    borderRadius: 10,
   },
 });

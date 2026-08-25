@@ -1,20 +1,25 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, RefreshControl } from 'react-native';
-import { Text, Card, Chip, Divider, Button, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, Divider, Chip, ActivityIndicator, IconButton } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
 import { motorSincronizacion } from '../../core/sync/syncEngine';
 import { Tienda, ResumenSincronizacion } from '../../core/types/database';
 import { APP_VERSION } from '../../core/constants/version';
+import { NuevoMovimientoModal } from '../modals/NuevoMovimientoModal';
+import { useAppTheme } from '../theme/ThemeContext';
 
 export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { isDarkMode, colors } = useAppTheme();
   const [tienda, setTienda] = useState<Tienda | null>(null);
   const [deudaTotal, setDeudaTotal] = useState<number>(0);
   const [conteoDeudores, setConteoDeudores] = useState<number>(0);
   const [totalClientes, setTotalClientes] = useState<number>(0);
   const [cargando, setCargando] = useState<boolean>(true);
   const [refrescando, setRefrescando] = useState<boolean>(false);
+  const [modalMovimientoVisible, setModalMovimientoVisible] = useState<boolean>(false);
+
   const [sincronizacion, setSincronizacion] = useState<ResumenSincronizacion>({
     pendientesCount: 0,
     estaEnLinea: false,
@@ -75,123 +80,165 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   if (cargando) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#bb86fc" />
-        <Text style={{ marginTop: 10, color: '#aaa' }}>Cargando datos de la tienda...</Text>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 10, color: colors.textSecondary }}>Cargando datos de la tienda...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Encabezado Superior Stitch */}
+      <View style={[styles.topHeaderBar, { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }]}>
+        <IconButton
+          icon="sync"
+          iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+          size={22}
+          onPress={cargarDatos}
+        />
+        <Text variant="titleMedium" style={styles.storeNameHeader}>
+          {tienda?.nombre || 'Supermercado La Esperanza'}
+        </Text>
+        <Chip
+          icon="check-circle"
+          style={{ backgroundColor: '#e8f5e9' }}
+          textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
+        >
+          Synced
+        </Chip>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor="#bb86fc" />}
+        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* Encabezado */}
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.titulo}>
-            {tienda?.nombre}
-          </Text>
-          <Text variant="bodyMedium" style={styles.subtitulo}>
-            Propietario: {tienda?.nombrePropietario}
-          </Text>
-        </View>
+        {/* Saludo Propietario */}
+        <Text variant="headlineMedium" style={[styles.greetingText, { color: colors.text }]}>
+          Hola, {tienda?.nombrePropietario || 'Carlos Mendoza'}
+        </Text>
 
-        {/* Badges de Conexión, Cola y Versión */}
+        {/* Chips de Estado Stitch */}
         <View style={styles.badgeRow}>
           <Chip
             icon={sincronizacion.estaEnLinea ? 'wifi' : 'wifi-off'}
-            style={[
-              styles.chip,
-              { backgroundColor: sincronizacion.estaEnLinea ? '#1b5e20' : '#b71c1c' },
-            ]}
+            style={{
+              backgroundColor: sincronizacion.estaEnLinea ? '#e8f5e9' : '#fde8e8',
+            }}
+            textStyle={{
+              color: sincronizacion.estaEnLinea ? '#2e7d32' : '#c62828',
+              fontWeight: 'bold',
+              fontSize: 12,
+            }}
           >
             {sincronizacion.estaEnLinea ? 'Online' : 'Offline'}
           </Chip>
 
-          <Chip icon="tray-full" style={styles.chip}>
+          <Chip
+            icon="tray-full"
+            style={{ backgroundColor: sincronizacion.pendientesCount > 0 ? '#fff3e0' : '#eeeeee' }}
+            textStyle={{ color: sincronizacion.pendientesCount > 0 ? '#e65100' : '#666666', fontWeight: 'bold', fontSize: 12 }}
+          >
             Pendientes: {sincronizacion.pendientesCount}
           </Chip>
 
-          <Chip icon="tag-outline" style={[styles.chip, { backgroundColor: '#333' }]}>
+          <Chip
+            icon="tag-outline"
+            style={{ backgroundColor: isDarkMode ? '#2c2c2c' : '#f0f0f0' }}
+            textStyle={{ color: colors.textSecondary, fontSize: 12 }}
+          >
             v{APP_VERSION}
           </Chip>
         </View>
 
-        {/* Tarjeta Métricas Financieras */}
-        <Card style={styles.cardPrincipal} mode="elevated">
-          <Card.Content>
-            <Text variant="bodyMedium" style={{ color: '#b0bec5' }}>
-              Deuda Total por Cobrar
+        {/* Tarjeta Ejecutiva Financiera TOTAL POR COBRAR */}
+        <Card style={[styles.cardTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
+          <Card.Content style={{ paddingVertical: 20 }}>
+            <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
+              TOTAL POR COBRAR
             </Text>
-            <Text variant="displaySmall" style={styles.montoDeuda}>
+
+            <Text variant="displayMedium" style={styles.montoTotalRojo}>
               ${deudaTotal.toLocaleString()}
             </Text>
-            <Divider style={styles.divider} />
 
-            <View style={styles.metricsRow}>
-              <View style={styles.metricCol}>
-                <Text variant="bodySmall" style={{ color: '#aaa' }}>
-                  Clientes Deudores
-                </Text>
-                <Text variant="titleMedium" style={{ color: '#ffb74d', fontWeight: 'bold' }}>
-                  {conteoDeudores} de {totalClientes}
-                </Text>
-              </View>
+            <Divider style={styles.cardDivider} />
 
-              <View style={styles.metricCol}>
-                <Text variant="bodySmall" style={{ color: '#aaa' }}>
-                  Límite por Defecto
-                </Text>
-                <Text variant="titleMedium" style={{ color: '#81c784', fontWeight: 'bold' }}>
-                  ${(tienda?.limiteCreditoPredeterminado ?? 100000).toLocaleString()}
-                </Text>
-              </View>
+            <View style={styles.metricRow}>
+              <Text variant="bodyMedium" style={{ color: colors.text, fontWeight: '500' }}>
+                👥 {conteoDeudores} de {totalClientes} Clientes Deudores
+              </Text>
+            </View>
+
+            <View style={[styles.metricRow, { marginTop: 6 }]}>
+              <Text variant="bodyMedium" style={{ color: colors.textSecondary }}>
+                ⚠️ Límite sugerido
+              </Text>
+
+              <Text variant="titleMedium" style={{ color: colors.text, fontWeight: 'bold' }}>
+                ${(tienda?.limiteCreditoPredeterminado || 100000).toLocaleString()}
+              </Text>
             </View>
           </Card.Content>
         </Card>
 
-        {/* Acciones Rápidas */}
-        <Text variant="titleMedium" style={styles.seccionTitulo}>
-          Acciones Rápidas
-        </Text>
-
-        <View style={styles.actionRow}>
+        {/* Botones de Acción Lado a Lado */}
+        <View style={styles.btnRow}>
           <Button
             mode="contained"
-            buttonColor="#6200ee"
+            buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+            textColor={isDarkMode ? '#000000' : '#ffffff'}
             icon="account-group"
             onPress={() => navigation.navigate('ClientesTab')}
-            style={styles.actionBtn}
+            style={styles.btnHalf}
+            contentStyle={{ paddingVertical: 4 }}
           >
             Ver Clientes
           </Button>
 
           <Button
-            mode="contained"
-            buttonColor="#03dac6"
-            textColor="#000"
-            icon="store-cog"
+            mode="outlined"
+            textColor={colors.text}
+            icon="cog-outline"
             onPress={() => navigation.navigate('ConfiguracionTab')}
-            style={styles.actionBtn}
+            style={[styles.btnHalf, { borderColor: colors.border }]}
+            contentStyle={{ paddingVertical: 4 }}
           >
             Ajustes
           </Button>
         </View>
 
+        {/* Botón Principal Completo: + Registrar Movimiento */}
+        <Button
+          mode="contained"
+          buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+          textColor={isDarkMode ? '#000000' : '#ffffff'}
+          icon="plus"
+          onPress={() => setModalMovimientoVisible(true)}
+          style={styles.btnRegistrarMovimiento}
+          contentStyle={{ paddingVertical: 8 }}
+        >
+          Registrar Movimiento
+        </Button>
+
         {/* Banner Informativo Offline */}
-        <Card style={styles.cardInfo} mode="outlined">
-          <Card.Content>
-            <Text variant="titleSmall" style={{ color: '#81d4fa', fontWeight: 'bold' }}>
-              ℹ️ Modo Offline Activo
-            </Text>
-            <Text variant="bodySmall" style={{ color: '#b0bec5', marginTop: 4, lineHeight: 18 }}>
-              Todos los fiados y pagos registrados sin señal se almacenan localmente en tu teléfono y se sincronizan en cuanto te conectes a internet.
-            </Text>
-          </Card.Content>
-        </Card>
+        <View style={styles.bannerOffline}>
+          <Text style={{ fontSize: 20 }}>🔄</Text>
+          <Text style={styles.bannerOfflineTexto}>
+            Operaciones offline se sincronizarán automáticamente al reconectarse a internet.
+          </Text>
+        </View>
       </ScrollView>
+
+      {/* Modal para Registrar Movimiento desde el Inicio */}
+      {tienda && (
+        <NuevoMovimientoModal
+          visible={modalMovimientoVisible}
+          onDismiss={() => setModalMovimientoVisible(false)}
+          tiendaId={tienda.id}
+          onSuccess={cargarDatos}
+        />
+      )}
     </View>
   );
 };
@@ -199,72 +246,85 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+  },
+  topHeaderBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 36,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  storeNameHeader: {
+    color: '#6200ee',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 40,
+    padding: 16,
+    paddingBottom: 40,
   },
-  header: {
-    marginBottom: 12,
-  },
-  titulo: {
-    color: '#bb86fc',
+  greetingText: {
     fontWeight: 'bold',
-  },
-  subtitulo: {
-    color: '#b0bec5',
+    marginBottom: 12,
+    fontSize: 24,
   },
   badgeRow: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 16,
   },
-  chip: {
-    borderRadius: 20,
+  cardTotal: {
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
   },
-  cardPrincipal: {
-    backgroundColor: '#1e1e1e',
-    marginBottom: 20,
-  },
-  montoDeuda: {
-    color: '#ef5350',
+  montoTotalRojo: {
+    color: '#c62828',
     fontWeight: 'bold',
-    marginVertical: 4,
+    marginVertical: 8,
   },
-  divider: {
+  cardDivider: {
     marginVertical: 12,
-    backgroundColor: '#333',
   },
-  metricsRow: {
+  metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  metricCol: {
-    flex: 1,
-  },
-  seccionTitulo: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+  btnRow: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 12,
   },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  actionBtn: {
+  btnHalf: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: 12,
   },
-  cardInfo: {
-    backgroundColor: '#0d2b3a',
-    borderColor: '#0288d1',
+  btnRegistrarMovimiento: {
+    borderRadius: 14,
+    marginBottom: 16,
+    elevation: 3,
+  },
+  bannerOffline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    padding: 14,
+    borderRadius: 12,
+  },
+  bannerOfflineTexto: {
+    flex: 1,
+    color: '#666666',
+    fontSize: 12,
+    lineHeight: 16,
   },
 });
