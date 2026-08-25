@@ -6,6 +6,7 @@ import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
 import { motorSincronizacion } from '../../core/sync/syncEngine';
 import { Tienda, ResumenSincronizacion } from '../../core/types/database';
+import { APP_VERSION } from '../../core/constants/version';
 
 export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [tienda, setTienda] = useState<Tienda | null>(null);
@@ -97,7 +98,7 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Badges de Conexión y Cola */}
+        {/* Badges de Conexión, Cola y Versión */}
         <View style={styles.badgeRow}>
           <Chip
             icon={sincronizacion.estaEnLinea ? 'wifi' : 'wifi-off'}
@@ -111,6 +112,10 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
           <Chip icon="tray-full" style={styles.chip}>
             Pendientes: {sincronizacion.pendientesCount}
+          </Chip>
+
+          <Chip icon="tag-outline" style={[styles.chip, { backgroundColor: '#333' }]}>
+            v{APP_VERSION}
           </Chip>
         </View>
 

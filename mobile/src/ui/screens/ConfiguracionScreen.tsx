@@ -3,6 +3,7 @@ import { StyleSheet, View, ScrollView, Alert } from 'react-native';
 import { Text, Card, TextInput, Button, HelperText, ActivityIndicator, Divider } from 'react-native-paper';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { Tienda } from '../../core/types/database';
+import { APP_VERSION, APP_BUILD_DATE } from '../../core/constants/version';
 
 export const ConfiguracionScreen: React.FC = () => {
   const [tienda, setTienda] = useState<Tienda | null>(null);
@@ -219,6 +220,17 @@ export const ConfiguracionScreen: React.FC = () => {
         >
           Guardar Cambios
         </Button>
+
+        <Card style={[styles.card, { backgroundColor: '#181818', marginTop: 10 }]} mode="outlined">
+          <Card.Content style={{ alignItems: 'center' }}>
+            <Text variant="labelLarge" style={{ color: '#bb86fc', fontWeight: 'bold' }}>
+              Gestor Digital de Fiados — Versión {APP_VERSION}
+            </Text>
+            <Text variant="bodySmall" style={{ color: '#777', marginTop: 2 }}>
+              Build: {APP_BUILD_DATE}
+            </Text>
+          </Card.Content>
+        </Card>
       </ScrollView>
     </View>
   );
