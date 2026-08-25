@@ -114,9 +114,12 @@ export const CrearClienteModal: React.FC<Props> = ({
             setError(null);
           }}
           textColor="#ffffff"
+          contentStyle={{ color: '#ffffff' }}
+          activeOutlineColor="#bb86fc"
+          outlineColor="#555555"
           mode="outlined"
           style={styles.input}
-          left={<TextInput.Icon icon="account" />}
+          left={<TextInput.Icon icon="account" color="#bb86fc" />}
         />
 
         <TextInput
@@ -128,9 +131,12 @@ export const CrearClienteModal: React.FC<Props> = ({
           }}
           keyboardType="numeric"
           textColor="#ffffff"
+          contentStyle={{ color: '#ffffff' }}
+          activeOutlineColor="#bb86fc"
+          outlineColor="#555555"
           mode="outlined"
           style={styles.input}
-          left={<TextInput.Icon icon="card-account-details" />}
+          left={<TextInput.Icon icon="card-account-details" color="#bb86fc" />}
         />
 
         <TextInput
@@ -142,9 +148,12 @@ export const CrearClienteModal: React.FC<Props> = ({
           }}
           keyboardType="phone-pad"
           textColor="#ffffff"
+          contentStyle={{ color: '#ffffff' }}
+          activeOutlineColor="#bb86fc"
+          outlineColor="#555555"
           mode="outlined"
           style={styles.input}
-          left={<TextInput.Icon icon="phone" />}
+          left={<TextInput.Icon icon="phone" color="#bb86fc" />}
         />
 
         <TextInput
@@ -155,9 +164,12 @@ export const CrearClienteModal: React.FC<Props> = ({
           autoCapitalize="none"
           autoCorrect={false}
           textColor="#ffffff"
+          contentStyle={{ color: '#ffffff' }}
+          activeOutlineColor="#bb86fc"
+          outlineColor="#555555"
           mode="outlined"
           style={styles.input}
-          left={<TextInput.Icon icon="email" />}
+          left={<TextInput.Icon icon="email" color="#bb86fc" />}
         />
 
         <TextInput
@@ -166,10 +178,14 @@ export const CrearClienteModal: React.FC<Props> = ({
           onChangeText={setLimitePersonalizado}
           keyboardType="numeric"
           textColor="#ffffff"
+          contentStyle={{ color: '#ffffff' }}
+          activeOutlineColor="#bb86fc"
+          outlineColor="#555555"
           mode="outlined"
           style={styles.input}
           placeholder="Dejar vacío para usar el predeterminado"
-          left={<TextInput.Icon icon="shield-alert-outline" />}
+          placeholderTextColor="#888888"
+          left={<TextInput.Icon icon="shield-alert-outline" color="#bb86fc" />}
         />
 
         <View style={styles.switchRow}>

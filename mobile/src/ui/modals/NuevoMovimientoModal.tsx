@@ -100,19 +100,28 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
             setError(null);
           }}
           keyboardType="numeric"
+          textColor="#ffffff"
+          contentStyle={{ color: '#ffffff' }}
+          activeOutlineColor="#bb86fc"
+          outlineColor="#555555"
           mode="outlined"
           style={styles.input}
-          left={<TextInput.Icon icon="currency-usd" />}
+          left={<TextInput.Icon icon="currency-usd" color="#bb86fc" />}
         />
 
         <TextInput
           label="Descripción u observación (opcional)"
           value={descripcion}
           onChangeText={setDescripcion}
+          textColor="#ffffff"
+          contentStyle={{ color: '#ffffff' }}
+          activeOutlineColor="#bb86fc"
+          outlineColor="#555555"
           mode="outlined"
           style={styles.input}
           placeholder={tipo === 'FIADO' ? 'Ej: Mercado, leche y pan' : 'Ej: Abono quincenal'}
-          left={<TextInput.Icon icon="note-text-outline" />}
+          placeholderTextColor="#888888"
+          left={<TextInput.Icon icon="note-text-outline" color="#bb86fc" />}
         />
 
         {error && (
