@@ -1,12 +1,12 @@
-# Build Stage: Compilar la aplicación Spring Boot con Maven y Java 17
-FROM maven:3.9-eclipse-temurin-17-alpine AS build
+# Build Stage: Compilar la aplicación Spring Boot con Maven y Java 17 (Multi-arch universal)
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# Run Stage: Imagen ligera JRE 17 para ejecución en producción/Dokploy
-FROM eclipse-temurin:17-jre-alpine
+# Run Stage: Imagen de ejecución JRE 17 universal para producción/Dokploy
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
