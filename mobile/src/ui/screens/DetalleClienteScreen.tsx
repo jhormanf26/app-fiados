@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { Text, Card, Button, Divider, Chip, IconButton, ActivityIndicator, ProgressBar } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import { Text, Card, Button, Divider, Chip, IconButton, ActivityIndicator, ProgressBar, Modal, Portal, TextInput, HelperText } from 'react-native-paper';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
 import { movimientoRepository } from '../../core/repositories/movimientoRepository';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
@@ -51,6 +51,12 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
   const [modalMovimientoVisible, setModalMovimientoVisible] = useState(false);
   const [modalEditarVisible, setModalEditarVisible] = useState(false);
 
+  // Estado para modal cross-platform de anulación de movimientos
+  const [movimientoAAnular, setMovimientoAAnular] = useState<Movimiento | null>(null);
+  const [motivoAnulacionInput, setMotivoAnulacionInput] = useState('');
+  const [errorAnulacion, setErrorAnulacion] = useState<string | null>(null);
+  const [anulando, setAnulando] = useState(false);
+
   const cargarDatos = useCallback(async () => {
     try {
       const t = await tiendaRepository.obtenerTienda();
@@ -76,33 +82,32 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
     cargarDatos();
   }, [cargarDatos]);
 
-  const handleAnular = (movimiento: Movimiento) => {
+  const handleAbrirAnular = (movimiento: Movimiento) => {
     if (movimiento.tipo === 'ANULACION') return;
+    setMovimientoAAnular(movimiento);
+    setMotivoAnulacionInput('');
+    setErrorAnulacion(null);
+  };
 
-    Alert.prompt(
-      'Anular Movimiento',
-      `¿Estás seguro de anular este movimiento de $${(movimiento.monto ?? 0).toLocaleString()}? Escribe el motivo de la anulación:`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Anular',
-          style: 'destructive',
-          onPress: async (motivo?: string) => {
-            if (!motivo || !motivo.trim()) {
-              Alert.alert('Error', 'Debes escribir un motivo para anular.');
-              return;
-            }
-            try {
-              await movimientoRepository.anularMovimiento(movimiento.id, motivo.trim());
-              await cargarDatos();
-            } catch (err: any) {
-              Alert.alert('Error', err.message);
-            }
-          },
-        },
-      ],
-      'plain-text'
-    );
+  const handleConfirmarAnulacion = async () => {
+    if (!movimientoAAnular) return;
+    if (!motivoAnulacionInput.trim()) {
+      setErrorAnulacion('Por favor ingresa un motivo para anular este movimiento.');
+      return;
+    }
+
+    setAnulando(true);
+    setErrorAnulacion(null);
+    try {
+      await movimientoRepository.anularMovimiento(movimientoAAnular.id, motivoAnulacionInput.trim());
+      setMovimientoAAnular(null);
+      setMotivoAnulacionInput('');
+      await cargarDatos();
+    } catch (err: any) {
+      setErrorAnulacion(err.message || 'Error al anular el movimiento.');
+    } finally {
+      setAnulando(false);
+    }
   };
 
   if (cargando || !cliente) {
@@ -349,7 +354,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
                           icon="delete-outline"
                           iconColor={isDarkMode ? '#ff8a80' : '#d32f2f'}
                           size={20}
-                          onPress={() => handleAnular(item)}
+                          onPress={() => handleAbrirAnular(item)}
                           style={{ margin: 0 }}
                         />
                       )}
@@ -382,6 +387,70 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
           onSuccess={cargarDatos}
         />
       )}
+
+      {/* Modal Anulación de Movimiento Cross-Platform (Web & Móvil) */}
+      <Portal>
+        <Modal
+          visible={Boolean(movimientoAAnular)}
+          onDismiss={() => setMovimientoAAnular(null)}
+          contentContainerStyle={[
+            styles.modalAnulacion,
+            { backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff' },
+          ]}
+        >
+          <Text variant="titleLarge" style={{ color: colors.text, fontWeight: 'bold', marginBottom: 8 }}>
+            ⚠️ Anular Movimiento
+          </Text>
+
+          <Text variant="bodyMedium" style={{ color: colors.textSecondary, marginBottom: 14 }}>
+            ¿Estás seguro de anular la transacción de{' '}
+            <Text style={{ fontWeight: 'bold', color: '#ef5350' }}>
+              ${(movimientoAAnular?.monto ?? 0).toLocaleString()}
+            </Text>
+            ? Escribe el motivo de la anulación:
+          </Text>
+
+          <TextInput
+            label="Motivo de la anulación *"
+            value={motivoAnulacionInput}
+            onChangeText={(val) => {
+              setMotivoAnulacionInput(val);
+              setErrorAnulacion(null);
+            }}
+            textColor={colors.text}
+            contentStyle={{ color: colors.text }}
+            activeOutlineColor="#ef5350"
+            outlineColor={colors.border}
+            mode="outlined"
+            style={{ backgroundColor: colors.inputBackground, marginBottom: 8 }}
+            placeholder="Ej: Error en el monto digitado"
+            placeholderTextColor={colors.textSecondary}
+          />
+
+          {errorAnulacion && (
+            <HelperText type="error" visible={true}>
+              {errorAnulacion}
+            </HelperText>
+          )}
+
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>
+            <Button mode="outlined" onPress={() => setMovimientoAAnular(null)} style={{ borderRadius: 10 }}>
+              Cancelar
+            </Button>
+            <Button
+              mode="contained"
+              buttonColor="#d32f2f"
+              textColor="#ffffff"
+              loading={anulando}
+              disabled={anulando}
+              onPress={handleConfirmarAnulacion}
+              style={{ borderRadius: 10 }}
+            >
+              Anular
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
     </View>
   );
 };
@@ -499,5 +568,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+  },
+  modalAnulacion: {
+    padding: 20,
+    margin: 20,
+    borderRadius: 16,
   },
 });
