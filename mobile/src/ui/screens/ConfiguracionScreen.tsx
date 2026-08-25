@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ScrollView, Alert } from 'react-native';
-import { Text, Card, TextInput, Button, HelperText, ActivityIndicator, Divider } from 'react-native-paper';
+import { Text, Card, TextInput, Button, HelperText, ActivityIndicator, Divider, Switch } from 'react-native-paper';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { Tienda } from '../../core/types/database';
 import { APP_VERSION, APP_BUILD_DATE } from '../../core/constants/version';
+import { useAppTheme } from '../theme/ThemeContext';
 
 export const ConfiguracionScreen: React.FC = () => {
+  const { isDarkMode, toggleTheme, colors } = useAppTheme();
   const [tienda, setTienda] = useState<Tienda | null>(null);
   const [nombre, setNombre] = useState('');
   const [nombrePropietario, setNombrePropietario] = useState('');
@@ -202,9 +204,9 @@ export const ConfiguracionScreen: React.FC = () => {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card} mode="elevated">
+        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="elevated">
           <Card.Content>
-            <Text variant="titleMedium" style={styles.cardTitle}>
+            <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.text }]}>
               Políticas de Crédito
             </Text>
             <Divider style={styles.divider} />
@@ -214,17 +216,43 @@ export const ConfiguracionScreen: React.FC = () => {
               value={limitePredeterminado}
               onChangeText={setLimitePredeterminado}
               keyboardType="numeric"
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="shield-alert-outline" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              left={<TextInput.Icon icon="shield-alert-outline" color={colors.primary} />}
             />
-            <Text variant="bodySmall" style={{ color: '#aaa', marginTop: 4 }}>
+            <Text variant="bodySmall" style={{ color: colors.textSecondary, marginTop: 4 }}>
               Este límite se aplicará a todos los clientes nuevos a menos que se defina un límite personalizado.
             </Text>
+          </Card.Content>
+        </Card>
+
+        {/* Sección Tema Oscuro / Claro */}
+        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="elevated">
+          <Card.Content>
+            <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.text }]}>
+              Apariencia de la Aplicación
+            </Text>
+            <Divider style={styles.divider} />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Text style={{ fontSize: 22 }}>{isDarkMode ? '🌙' : '☀️'}</Text>
+                <View>
+                  <Text variant="bodyLarge" style={{ color: colors.text, fontWeight: '600' }}>
+                    {isDarkMode ? 'Modo Oscuro' : 'Modo Claro'}
+                  </Text>
+                  <Text variant="bodySmall" style={{ color: colors.textSecondary }}>
+                    {isDarkMode ? 'Interfaz oscura relajante para la vista' : 'Interfaz clara de alto contraste'}
+                  </Text>
+                </View>
+              </View>
+
+              <Switch value={isDarkMode} onValueChange={toggleTheme} color={colors.primary} />
+            </View>
           </Card.Content>
         </Card>
 

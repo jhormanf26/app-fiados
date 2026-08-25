@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Provider as PaperProvider, MD3DarkTheme, ActivityIndicator, Text } from 'react-native-paper';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { Provider as PaperProvider, ActivityIndicator, Text } from 'react-native-paper';
+import { NavigationContainer } from '@react-navigation/native';
 import { inicializarBaseDatos } from './src/core/database/db';
 import { AppNavigator } from './src/ui/navigation/AppNavigator';
+import { ThemeProvider, useAppTheme } from './src/ui/theme/ThemeContext';
 
-export default function App() {
+function AppContent() {
+  const { paperTheme, navTheme, colors } = useAppTheme();
   const [bdLista, setBdLista] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -18,28 +20,35 @@ export default function App() {
 
   if (bdLista === null) {
     return (
-      <PaperProvider theme={MD3DarkTheme}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#bb86fc" />
-          <Text style={{ marginTop: 12, color: '#aaa' }}>Inicializando Base de Datos Local SQLite...</Text>
+      <PaperProvider theme={paperTheme}>
+        <View style={[styles.center, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: 12, color: colors.textSecondary }}>Inicializando Base de Datos Local SQLite...</Text>
         </View>
       </PaperProvider>
     );
   }
 
   return (
-    <PaperProvider theme={MD3DarkTheme}>
-      <NavigationContainer theme={DarkTheme}>
+    <PaperProvider theme={paperTheme}>
+      <NavigationContainer theme={navTheme}>
         <AppNavigator />
       </NavigationContainer>
     </PaperProvider>
   );
 }
 
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
