@@ -20,6 +20,6 @@
 - Cambiada la marca oficial de la aplicación a **FiaYa** en todas las pantallas y archivos de configuración (`app.json`, `LoginScreen`, `RegistroTienda`, `ConsultaCliente`, `Configuracion`, `DetalleCliente`).
 - Creada la arquitectura completa del Backend Spring Boot 3 en `backend/` con entidades JPA (`TiendaEntity`, `ClienteEntity`, `MovimientoEntity`), repositorios y servicios.
 - Desarrollado el motor de sincronización por lote idempotente `/api/v1/sync`.
-- Creado el controlador público de consulta de deudas por documento `/api/v1/public/cliente-consulta`.
-- Creada la suite de pruebas unitarias/integración `SyncServiceTest.java` utilizando base de datos H2 en memoria.
-- Realizado commit y push a la rama `main` en GitHub (`https://github.com/jhormanf26/app-fiados.git`).
+- Implementado el motor de sincronización móvil Outbox en SQLite (`syncRepository.ts`, `syncService.ts`, `syncEngine.ts`) con listeners de red automáticos NetInfo y botón manual en encabezado **`🔄 FiaYa`** / **`Synced`**.
+- Ejecutadas pruebas de integración completas (12/12 pasos exitosos) y comprobación TypeScript (0 errores).
+- Realizado commit (`8cf7383`) y push a la rama `main` en GitHub (`https://github.com/jhormanf26/app-fiados.git`).
