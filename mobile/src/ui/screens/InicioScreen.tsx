@@ -188,6 +188,19 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Chip>
         </View>
 
+        {/* Botón Principal Completo: + Registrar Movimiento (Ubicación Superior) */}
+        <Button
+          mode="contained"
+          buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+          textColor={isDarkMode ? '#000000' : '#ffffff'}
+          icon="plus"
+          onPress={() => setModalMovimientoVisible(true)}
+          style={styles.btnRegistrarMovimientoTop}
+          contentStyle={{ paddingVertical: 8 }}
+        >
+          Registrar Movimiento
+        </Button>
+
         {/* Tarjeta Ejecutiva Financiera TOTAL POR COBRAR */}
         <Card style={[styles.cardTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
           <Card.Content style={{ paddingVertical: 18 }}>
@@ -370,19 +383,6 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Button>
         </View>
 
-        {/* Botón Principal Completo: + Registrar Movimiento */}
-        <Button
-          mode="contained"
-          buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-          textColor={isDarkMode ? '#000000' : '#ffffff'}
-          icon="plus"
-          onPress={() => setModalMovimientoVisible(true)}
-          style={styles.btnRegistrarMovimiento}
-          contentStyle={{ paddingVertical: 8 }}
-        >
-          Registrar Movimiento
-        </Button>
-
         {/* Banner Informativo Offline */}
         <View style={styles.bannerOffline}>
           <Text style={{ fontSize: 20 }}>🔄</Text>
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
   },
-  btnRegistrarMovimiento: {
+  btnRegistrarMovimientoTop: {
     borderRadius: 14,
     marginBottom: 16,
     elevation: 3,
