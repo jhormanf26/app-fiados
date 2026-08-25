@@ -80,7 +80,7 @@ export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation
           onPress={() => navigation.goBack()}
         />
         <Text variant="titleMedium" style={styles.brandTitleHeader}>
-          LedgerPro
+          FiaYa
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -266,7 +266,7 @@ export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation
               <Text style={{ color: isDarkMode ? '#bb86fc' : '#6200ee', fontWeight: 'bold' }}>
                 Política de Privacidad
               </Text>{' '}
-              de LedgerPro.
+              de FiaYa.
             </Text>
           </TouchableOpacity>
         </View>

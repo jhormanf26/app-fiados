@@ -35,10 +35,10 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Header Logo LedgerPro */}
+        {/* Header Logo FiaYa */}
         <View style={styles.headerSection}>
           <Text variant="displaySmall" style={styles.brandTitle}>
-            LedgerPro
+            FiaYa
           </Text>
           <Text variant="bodyMedium" style={[styles.brandSubtitle, { color: colors.textSecondary }]}>
             Bienvenido de nuevo, tendero. Toma el control de tu negocio hoy.

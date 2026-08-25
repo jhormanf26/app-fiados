@@ -125,7 +125,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Encabezado Superior Stitch: Flecha atrás + Nombre Tienda + Synced */}
+      {/* Encabezado Superior FiaYa: Flecha atrás + FiaYa + Synced */}
       <View style={[styles.topHeaderBar, { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }]}>
         <IconButton
           icon="arrow-left"
@@ -133,8 +133,8 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
           size={24}
           onPress={() => navigation.goBack()}
         />
-        <Text variant="titleMedium" style={styles.storeNameHeader}>
-          {tienda?.nombre || 'Supermercado La Esperanza'}
+        <Text variant="titleMedium" style={{ color: '#6200ee', fontWeight: 'bold', fontSize: 18 }}>
+          FiaYa
         </Text>
         <Chip
           icon="check-circle"

@@ -142,17 +142,24 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Encabezado Superior Stitch */}
+      {/* Encabezado Superior FiaYa */}
       <View style={[styles.topHeaderBar, { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }]}>
-        <IconButton
-          icon="sync"
-          iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-          size={22}
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={cargarDatos}
-        />
-        <Text variant="titleMedium" style={styles.storeNameHeader}>
-          {tienda?.nombre || 'Supermercado La Esperanza'}
-        </Text>
+          style={{ flexDirection: 'row', alignItems: 'center' }}
+        >
+          <IconButton
+            icon="sync"
+            iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+            size={22}
+            style={{ margin: 0 }}
+          />
+          <Text variant="titleMedium" style={styles.brandHeaderTitle}>
+            FiaYa
+          </Text>
+        </TouchableOpacity>
+
         <Chip
           icon="check-circle"
           style={{ backgroundColor: '#e8f5e9' }}
@@ -451,10 +458,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
   },
-  storeNameHeader: {
+  brandHeaderTitle: {
     color: '#6200ee',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 18,
+    marginLeft: 2,
   },
   center: {
     flex: 1,

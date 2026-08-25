@@ -84,7 +84,7 @@ export const ConsultaClienteScreen: React.FC<{ navigation: any }> = ({ navigatio
         />
         <View style={{ alignItems: 'center' }}>
           <Text variant="titleMedium" style={styles.brandTitleHeader}>
-            LedgerPro
+            FiaYa
           </Text>
           <Text variant="bodySmall" style={{ color: colors.textSecondary, fontSize: 11 }}>
             Portal de Clientes

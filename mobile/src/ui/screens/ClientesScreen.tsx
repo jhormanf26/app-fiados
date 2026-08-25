@@ -185,18 +185,32 @@ export const ClientesScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Barra de Encabezado Superior Stitch */}
+      {/* Barra de Encabezado Superior FiaYa */}
       <View style={[styles.headerContainer, { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }]}>
         <View style={styles.topHeaderBar}>
-          <IconButton
-            icon="sync"
-            iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-            size={24}
+          <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() => cargarClientes(busqueda)}
-          />
-          <Text variant="titleMedium" style={styles.storeNameHeader}>
-            {tienda?.nombre || 'Supermercado La Esperanza'}
-          </Text>
+            style={{ flexDirection: 'row', alignItems: 'center' }}
+          >
+            <IconButton
+              icon="sync"
+              iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+              size={22}
+              style={{ margin: 0 }}
+            />
+            <Text variant="titleMedium" style={{ color: '#6200ee', fontWeight: 'bold', fontSize: 18, marginLeft: 2 }}>
+              FiaYa
+            </Text>
+          </TouchableOpacity>
+
+          <Chip
+            icon="check-circle"
+            style={{ backgroundColor: '#e8f5e9' }}
+            textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
+          >
+            Synced
+          </Chip>
         </View>
 
         <Text variant="headlineMedium" style={[styles.tituloPantalla, { color: colors.text }]}>

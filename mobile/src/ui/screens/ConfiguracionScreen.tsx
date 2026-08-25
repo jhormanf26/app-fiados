@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Text, Card, TextInput, Button, HelperText, ActivityIndicator, Divider, Switch, IconButton, Chip } from 'react-native-paper';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { Tienda } from '../../core/types/database';
@@ -94,17 +94,24 @@ export const ConfiguracionScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Encabezado Superior Stitch con Synced Badge */}
+      {/* Encabezado Superior FiaYa */}
       <View style={[styles.topHeaderBar, { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }]}>
-        <IconButton
-          icon="sync"
-          iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-          size={22}
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={cargarTienda}
-        />
-        <Text variant="titleMedium" style={styles.storeNameHeader}>
-          {nombre || 'Supermercado La Esperanza'}
-        </Text>
+          style={{ flexDirection: 'row', alignItems: 'center' }}
+        >
+          <IconButton
+            icon="sync"
+            iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+            size={22}
+            style={{ margin: 0 }}
+          />
+          <Text variant="titleMedium" style={{ color: '#6200ee', fontWeight: 'bold', fontSize: 18, marginLeft: 2 }}>
+            FiaYa
+          </Text>
+        </TouchableOpacity>
+
         <Chip
           icon="check-circle"
           style={{ backgroundColor: '#e8f5e9' }}
@@ -306,7 +313,7 @@ export const ConfiguracionScreen: React.FC = () => {
         {/* Footer Version Stitch */}
         <View style={styles.footerVersion}>
           <Text variant="bodySmall" style={{ color: colors.textSecondary, textAlign: 'center' }}>
-            LedgerPro v{APP_VERSION} • Build {APP_BUILD_DATE.replace(/[- :]/g, '').substring(0, 8)}
+            FiaYa v{APP_VERSION} • Build {APP_BUILD_DATE.replace(/[- :]/g, '').substring(0, 8)}
           </Text>
         </View>
       </ScrollView>
