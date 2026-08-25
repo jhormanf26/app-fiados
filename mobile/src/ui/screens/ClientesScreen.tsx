@@ -152,7 +152,7 @@ export const ClientesScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             {tieneDeuda ? (
               <View style={[styles.badgePill, styles.badgePillDeuda]}>
                 <Text style={styles.badgeTextDeuda}>
-                  ⚠️ Deuda: ${item.saldoActual.toLocaleString()}
+                  ⚠️ Deuda: ${(item.saldoActual ?? 0).toLocaleString()}
                 </Text>
               </View>
             ) : (

@@ -170,7 +170,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
                   </Text>
                   {clienteSeleccionado && (
                     <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-                      Doc: {clienteSeleccionado.numeroDocumento} | Deuda: ${clienteSeleccionado.saldoActual.toLocaleString()}
+                      Doc: {clienteSeleccionado.numeroDocumento} | Deuda: ${(clienteSeleccionado.saldoActual ?? 0).toLocaleString()}
                     </Text>
                   )}
                 </View>
@@ -324,7 +324,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
                     fontSize: 13,
                   }}
                 >
-                  {item.saldoActual > 0 ? `$${item.saldoActual.toLocaleString()}` : 'Al Día'}
+                  {item.saldoActual > 0 ? `$${(item.saldoActual ?? 0).toLocaleString()}` : 'Al Día'}
                 </Text>
               </TouchableOpacity>
             ))

@@ -174,7 +174,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
                   Deuda Actual
                 </Text>
                 <Text variant="headlineMedium" style={styles.montoDeudaRojo}>
-                  ${cliente.saldoActual.toLocaleString()}
+                  ${(cliente?.saldoActual ?? 0).toLocaleString()}
                 </Text>
               </View>
 
@@ -183,7 +183,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
                   Límite de Crédito
                 </Text>
                 <Text variant="headlineSmall" style={{ color: colors.text, fontWeight: 'bold' }}>
-                  ${limiteEfectivo.toLocaleString()}
+                  ${(limiteEfectivo ?? 0).toLocaleString()}
                 </Text>
               </View>
             </View>
@@ -271,7 +271,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
                           fontWeight: 'bold',
                         }}
                       >
-                        ${item.monto.toLocaleString()}
+                        ${(item.monto ?? 0).toLocaleString()}
                       </Text>
                     </View>
 
