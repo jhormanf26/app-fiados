@@ -1,16 +1,12 @@
-import * as Crypto from 'expo-crypto';
-
-/**
- * Genera un UUID v4 compatible con Android, iOS y Web (incluso en HTTP local)
- */
 export function generarUUID(): string {
   try {
-    if (typeof Crypto.randomUUID === 'function') {
+    const Crypto = require('expo-crypto');
+    if (typeof Crypto?.randomUUID === 'function') {
       const uuid = Crypto.randomUUID();
       if (uuid) return uuid;
     }
   } catch (e) {
-    // Fallback si la API nativa de crypto no está disponible en HTTP web
+    // Fallback si expo-crypto no está disponible o estamos en Node/Web sin HTTPS
   }
 
   // Generador universal UUID v4 RFC4122

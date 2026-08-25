@@ -6,6 +6,7 @@ import { Tienda } from '../../core/types/database';
 import { APP_VERSION, APP_BUILD_DATE } from '../../core/constants/version';
 import { useAppTheme } from '../theme/ThemeContext';
 import { useAuth } from '../auth/AuthContext';
+import { formatearMonedaInput, desformatearMonedaInput } from '../../core/utils/currency';
 
 export const ConfiguracionScreen: React.FC = () => {
   const { isDarkMode, toggleTheme, colors } = useAppTheme();
@@ -39,7 +40,7 @@ export const ConfiguracionScreen: React.FC = () => {
         setCorreo(t.correo);
         setDireccion(t.direccion ?? '');
         setCiudad(t.ciudad ?? '');
-        setLimitePredeterminado(t.limiteCreditoPredeterminado.toString());
+        setLimitePredeterminado(formatearMonedaInput(t.limiteCreditoPredeterminado));
       }
     } catch (err) {
       console.error('Error al cargar tienda:', err);
@@ -55,7 +56,7 @@ export const ConfiguracionScreen: React.FC = () => {
       return;
     }
 
-    const limiteVal = parseFloat(limitePredeterminado.replace(/[^0-9.]/g, ''));
+    const limiteVal = desformatearMonedaInput(limitePredeterminado);
     if (isNaN(limiteVal) || limiteVal <= 0) {
       setError('Por favor ingresa un límite de crédito predeterminado válido.');
       return;
@@ -235,7 +236,7 @@ export const ConfiguracionScreen: React.FC = () => {
             <TextInput
               label="Límite de Crédito Predeterminado ($) *"
               value={limitePredeterminado}
-              onChangeText={setLimitePredeterminado}
+              onChangeText={(val) => setLimitePredeterminado(formatearMonedaInput(val))}
               keyboardType="numeric"
               textColor={colors.text}
               contentStyle={{ color: colors.text }}
@@ -285,17 +286,19 @@ export const ConfiguracionScreen: React.FC = () => {
           loading={guardando}
           disabled={guardando}
           style={styles.btnGuardar}
+          contentStyle={{ paddingVertical: 4 }}
         >
           Guardar Cambios
         </Button>
 
-        {/* Botón Cerrar Sesión */}
+        {/* Botón Cerrar Sesión (Separado adecuadamente) */}
         <Button
           mode="outlined"
           textColor="#d32f2f"
           icon="logout"
           onPress={logout}
-          style={{ borderRadius: 12, borderColor: '#d32f2f', marginBottom: 16 }}
+          style={styles.btnCerrarSesion}
+          contentStyle={{ paddingVertical: 4 }}
         >
           Cerrar Sesión
         </Button>
@@ -362,7 +365,12 @@ const styles = StyleSheet.create({
   btnGuardar: {
     borderRadius: 12,
     marginTop: 8,
-    paddingVertical: 4,
+    marginBottom: 14,
+  },
+  btnCerrarSesion: {
+    borderRadius: 12,
+    borderColor: '#d32f2f',
+    marginBottom: 16,
   },
   footerVersion: {
     marginTop: 20,

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { Searchbar, FAB, Card, Text, Chip, ActivityIndicator, IconButton, Divider } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
@@ -8,7 +8,7 @@ import { Cliente, Tienda } from '../../core/types/database';
 import { CrearClienteModal } from '../modals/CrearClienteModal';
 import { useAppTheme } from '../theme/ThemeContext';
 
-type TipoFiltro = 'TODOS' | 'DEUDA' | 'ALDIA';
+type TipoFiltro = 'TODOS' | 'DEUDA' | 'ALDIA' | 'FAVOR';
 
 function obtenerIniciales(nombre: string): string {
   if (!nombre) return 'CL';
@@ -69,10 +69,11 @@ export const ClientesScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     setModalVisible(true);
   };
 
-  // Filtrado de la lista por el chip seleccionado (Todos, Con Deuda, Al Día)
+  // Filtrado de la lista por el chip seleccionado (Todos, Con Deuda, Al Día / Saldo a Favor, Saldo a Favor)
   const clientesFiltrados = clientes.filter((c) => {
     if (filtro === 'DEUDA') return c.saldoActual > 0;
-    if (filtro === 'ALDIA') return c.saldoActual === 0;
+    if (filtro === 'ALDIA') return c.saldoActual <= 0; // Incluye clientes al día ($0) y con saldo a favor
+    if (filtro === 'FAVOR') return c.saldoActual < 0; // Filtro exclusivo para saldo a favor
     return true;
   });
 
@@ -147,17 +148,23 @@ export const ClientesScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
           <Divider style={[styles.cardDivider, { backgroundColor: isDarkMode ? '#2c2c2c' : '#f0f0f0' }]} />
 
-          {/* Fila Inferior: Pill Deuda/Al Día + Botón Editar */}
+          {/* Fila Inferior: Pill Deuda / Saldo a Favor / Al Día + Botón Editar */}
           <View style={styles.bottomRow}>
-            {tieneDeuda ? (
+            {item.saldoActual > 0 ? (
               <View style={[styles.badgePill, styles.badgePillDeuda]}>
                 <Text style={styles.badgeTextDeuda}>
                   ⚠️ Deuda: ${(item.saldoActual ?? 0).toLocaleString()}
                 </Text>
               </View>
-            ) : (
+            ) : item.saldoActual < 0 ? (
               <View style={[styles.badgePill, styles.badgePillAlDia]}>
                 <Text style={styles.badgeTextAlDia}>
+                  ✨ Saldo a Favor: ${Math.abs(item.saldoActual ?? 0).toLocaleString()}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.badgePill, { backgroundColor: isDarkMode ? '#2c2c2c' : '#eeeeee' }]}>
+                <Text style={{ color: colors.textSecondary, fontWeight: 'bold', fontSize: 13 }}>
                   💬 Al Día ($0)
                 </Text>
               </View>
@@ -213,68 +220,43 @@ export const ClientesScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           placeholderTextColor={isDarkMode ? '#777777' : '#888888'}
         />
 
-        {/* Pills de Filtrado: Todos / Con Deuda / Al Día */}
-        <View style={styles.filterRow}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setFiltro('TODOS')}
-            style={[
-              styles.filterPill,
-              filtro === 'TODOS'
-                ? styles.filterPillActive
-                : { backgroundColor: isDarkMode ? '#262626' : '#eeeeee' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                filtro === 'TODOS' ? styles.filterPillTextActive : { color: colors.text },
-              ]}
-            >
-              Todos
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setFiltro('DEUDA')}
-            style={[
-              styles.filterPill,
-              filtro === 'DEUDA'
-                ? styles.filterPillActive
-                : { backgroundColor: isDarkMode ? '#262626' : '#eeeeee' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                filtro === 'DEUDA' ? styles.filterPillTextActive : { color: colors.text },
-              ]}
-            >
-              Con Deuda
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setFiltro('ALDIA')}
-            style={[
-              styles.filterPill,
-              filtro === 'ALDIA'
-                ? styles.filterPillActive
-                : { backgroundColor: isDarkMode ? '#262626' : '#eeeeee' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                filtro === 'ALDIA' ? styles.filterPillTextActive : { color: colors.text },
-              ]}
-            >
-              Al Día
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Pills de Filtrado: Todos / Con Deuda / Al Día / Saldo a Favor */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}
+        >
+          {[
+            { id: 'TODOS', label: 'Todos' },
+            { id: 'DEUDA', label: 'Con Deuda' },
+            { id: 'ALDIA', label: 'Al Día' },
+            { id: 'FAVOR', label: '✨ Saldo a Favor' },
+          ].map((item) => {
+            const esActivo = filtro === item.id;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.8}
+                onPress={() => setFiltro(item.id as TipoFiltro)}
+                style={[
+                  styles.filterPill,
+                  esActivo
+                    ? styles.filterPillActive
+                    : { backgroundColor: isDarkMode ? '#262626' : '#eeeeee' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    esActivo ? styles.filterPillTextActive : { color: colors.text },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Lista o Loader */}

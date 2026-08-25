@@ -4,7 +4,7 @@ import { Text, Card, Button, Divider, Chip, ActivityIndicator, IconButton, Progr
 import { useFocusEffect } from '@react-navigation/native';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
-import { movimientoRepository, MovimientoConCliente } from '../../core/repositories/movimientoRepository';
+import { movimientoRepository, MovimientoConCliente, PeriodoFiltroCartera } from '../../core/repositories/movimientoRepository';
 import { motorSincronizacion } from '../../core/sync/syncEngine';
 import { Tienda, ResumenSincronizacion } from '../../core/types/database';
 import { APP_VERSION } from '../../core/constants/version';
@@ -36,12 +36,28 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [deudaTotal, setDeudaTotal] = useState<number>(0);
   const [totalFiado, setTotalFiado] = useState<number>(0);
   const [totalRecuperado, setTotalRecuperado] = useState<number>(0);
+  const [periodoCartera, setPeriodoCartera] = useState<PeriodoFiltroCartera>('SIEMPRE');
   const [conteoDeudores, setConteoDeudores] = useState<number>(0);
   const [totalClientes, setTotalClientes] = useState<number>(0);
   const [movimientosDelDia, setMovimientosDelDia] = useState<MovimientoConCliente[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
   const [refrescando, setRefrescando] = useState<boolean>(false);
   const [modalMovimientoVisible, setModalMovimientoVisible] = useState<boolean>(false);
+  const [tipoMovimientoInicial, setTipoMovimientoInicial] = useState<'FIADO' | 'PAGO'>('FIADO');
+
+  const handleAbrirMovimiento = (tipo: 'FIADO' | 'PAGO') => {
+    setTipoMovimientoInicial(tipo);
+    setModalMovimientoVisible(true);
+  };
+
+  const cambiarPeriodoCartera = async (nuevoPeriodo: PeriodoFiltroCartera) => {
+    setPeriodoCartera(nuevoPeriodo);
+    if (tienda) {
+      const cartera = await movimientoRepository.obtenerResumenCartera(tienda.id, nuevoPeriodo);
+      setTotalFiado(cartera.totalFiado);
+      setTotalRecuperado(cartera.totalRecuperado);
+    }
+  };
 
   const [sincronizacion, setSincronizacion] = useState<ResumenSincronizacion>({
     pendientesCount: 0,
@@ -69,11 +85,11 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const deudores = clientes.filter((c) => c.saldoActual > 0);
       setConteoDeudores(deudores.length);
 
-      const sumaDeudas = clientes.reduce((acc, c) => acc + c.saldoActual, 0);
+      const sumaDeudas = clientes.reduce((acc, c) => acc + (c.saldoActual > 0 ? c.saldoActual : 0), 0);
       setDeudaTotal(sumaDeudas);
 
       // Cargar Resumen de Cartera (Total Fiado vs Total Recuperado en Pagos)
-      const cartera = await movimientoRepository.obtenerResumenCartera(t.id);
+      const cartera = await movimientoRepository.obtenerResumenCartera(t.id, periodoCartera);
       setTotalFiado(cartera.totalFiado);
       setTotalRecuperado(cartera.totalRecuperado);
 
@@ -188,62 +204,103 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Chip>
         </View>
 
-        {/* Botón Principal Completo: + Registrar Movimiento (Ubicación Superior) */}
-        <Button
-          mode="contained"
-          buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-          textColor={isDarkMode ? '#000000' : '#ffffff'}
-          icon="plus"
-          onPress={() => setModalMovimientoVisible(true)}
-          style={styles.btnRegistrarMovimientoTop}
-          contentStyle={{ paddingVertical: 8 }}
-        >
-          Registrar Movimiento
-        </Button>
-
-        {/* Tarjeta Ejecutiva Financiera TOTAL POR COBRAR */}
-        <Card style={[styles.cardTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
-          <Card.Content style={{ paddingVertical: 18 }}>
-            <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
-              TOTAL POR COBRAR
+        {/* Tarjeta Ejecutiva Hero: Deuda Total por Cobrar */}
+        <Card style={[styles.cardHeroTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
+          <Card.Content style={{ paddingVertical: 22, alignItems: 'center' }}>
+            <Text variant="titleMedium" style={{ color: colors.textSecondary, fontWeight: '600', marginBottom: 2 }}>
+              Deuda Total por Cobrar
             </Text>
 
-            <Text variant="displayMedium" style={styles.montoTotalRojo}>
+            <Text variant="displayMedium" style={styles.montoTotalRojoHero}>
               ${(deudaTotal ?? 0).toLocaleString()}
             </Text>
 
-            <Divider style={styles.cardDivider} />
-
-            <View style={styles.metricRow}>
-              <Text variant="bodyMedium" style={{ color: colors.text, fontWeight: '500' }}>
-                👥 {conteoDeudores} de {totalClientes} Clientes Deudores
-              </Text>
-            </View>
-
-            <View style={[styles.metricRow, { marginTop: 6 }]}>
-              <Text variant="bodyMedium" style={{ color: colors.textSecondary }}>
-                ⚠️ Límite sugerido
-              </Text>
-
-              <Text variant="titleMedium" style={{ color: colors.text, fontWeight: 'bold' }}>
-                ${((tienda?.limiteCreditoPredeterminado || 100000) ?? 0).toLocaleString()}
-              </Text>
-            </View>
+            <Text variant="bodySmall" style={{ color: colors.textSecondary, marginTop: 4 }}>
+              Actualizado en tiempo real • {conteoDeudores} de {totalClientes} Clientes Deudores
+            </Text>
           </Card.Content>
         </Card>
 
-        {/* Tarjeta RESUMEN DE CARTERA (Total Fiado vs Total Recuperado) */}
+        {/* Botones de Acción Destacados Lado a Lado: Nuevo Fiado vs Registrar Pago */}
+        <View style={styles.actionRowHero}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => handleAbrirMovimiento('FIADO')}
+            style={[styles.btnActionCustom, { backgroundColor: '#0b4f37' }]}
+          >
+            <IconButton icon="cart-plus" iconColor="#ffffff" size={26} style={{ margin: 0 }} />
+            <Text style={styles.btnActionCustomText}>Nuevo Fiado</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => handleAbrirMovimiento('PAGO')}
+            style={[styles.btnActionCustom, { backgroundColor: '#2c4d75' }]}
+          >
+            <IconButton icon="cash-plus" iconColor="#ffffff" size={26} style={{ margin: 0 }} />
+            <Text style={styles.btnActionCustomText}>Registrar Pago</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tarjeta RESUMEN DE CARTERA (Interactivo con Selector de Periodo) */}
         <Card style={[styles.cardTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
           <Card.Content style={{ paddingVertical: 18 }}>
-            <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12 }}>
-              RESUMEN DE CARTERA
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
+                RESUMEN DE CARTERA
+              </Text>
+
+              <Chip
+                icon="percent"
+                style={{ backgroundColor: isDarkMode ? '#1b3b1c' : '#e8f5e9' }}
+                textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
+              >
+                {totalFiado > 0 ? `${Math.round((totalRecuperado / totalFiado) * 100)}% Recuperado` : '0%'}
+              </Chip>
+            </View>
+
+            {/* Selector Interactivo de Periodo Temporal */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 6, paddingBottom: 14 }}
+            >
+              {[
+                { id: 'DIA', label: 'Hoy' },
+                { id: 'SEMANA', label: '7 Días' },
+                { id: '15DIAS', label: '15 Días' },
+                { id: 'MES', label: '30 Días' },
+                { id: 'SIEMPRE', label: 'Siempre' },
+              ].map((item) => {
+                const esActivo = periodoCartera === item.id;
+                return (
+                  <Chip
+                    key={item.id}
+                    selected={esActivo}
+                    onPress={() => cambiarPeriodoCartera(item.id as PeriodoFiltroCartera)}
+                    style={{
+                      backgroundColor: esActivo
+                        ? (isDarkMode ? '#bb86fc' : '#6200ee')
+                        : (isDarkMode ? '#2c2c2c' : '#f0f0f0'),
+                      height: 32,
+                    }}
+                    textStyle={{
+                      color: esActivo ? (isDarkMode ? '#000000' : '#ffffff') : colors.text,
+                      fontWeight: esActivo ? 'bold' : '500',
+                      fontSize: 11,
+                    }}
+                  >
+                    {item.label}
+                  </Chip>
+                );
+              })}
+            </ScrollView>
 
             {/* Fila 1: Total Fiado */}
             <View style={styles.carteraItem}>
               <View style={styles.carteraHeaderRow}>
                 <Text variant="bodyMedium" style={{ color: colors.text, fontWeight: '500' }}>
-                  Total Fiado
+                  Total Fiado ({periodoCartera === 'DIA' ? 'Hoy' : periodoCartera === 'SEMANA' ? '7 Días' : periodoCartera === '15DIAS' ? '15 Días' : periodoCartera === 'MES' ? '30 Días' : 'Histórico'})
                 </Text>
                 <Text variant="titleMedium" style={{ color: '#ef5350', fontWeight: 'bold' }}>
                   ${(totalFiado ?? 0).toLocaleString()}
@@ -260,7 +317,7 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View style={[styles.carteraItem, { marginTop: 14 }]}>
               <View style={styles.carteraHeaderRow}>
                 <Text variant="bodyMedium" style={{ color: colors.text, fontWeight: '500' }}>
-                  Total Recuperado
+                  Total Recuperado ({periodoCartera === 'DIA' ? 'Hoy' : periodoCartera === 'SEMANA' ? '7 Días' : periodoCartera === '15DIAS' ? '15 Días' : periodoCartera === 'MES' ? '30 Días' : 'Histórico'})
                 </Text>
                 <Text variant="titleMedium" style={{ color: '#2e7d32', fontWeight: 'bold' }}>
                   ${(totalRecuperado ?? 0).toLocaleString()}
@@ -357,32 +414,6 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Card.Content>
         </Card>
 
-        {/* Botones de Acción Lado a Lado */}
-        <View style={styles.btnRow}>
-          <Button
-            mode="contained"
-            buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-            textColor={isDarkMode ? '#000000' : '#ffffff'}
-            icon="account-group"
-            onPress={() => navigation.navigate('ClientesTab')}
-            style={styles.btnHalf}
-            contentStyle={{ paddingVertical: 4 }}
-          >
-            Ver Clientes
-          </Button>
-
-          <Button
-            mode="outlined"
-            textColor={colors.text}
-            icon="cog-outline"
-            onPress={() => navigation.navigate('ConfiguracionTab')}
-            style={[styles.btnHalf, { borderColor: colors.border }]}
-            contentStyle={{ paddingVertical: 4 }}
-          >
-            Ajustes
-          </Button>
-        </View>
-
         {/* Banner Informativo Offline */}
         <View style={styles.bannerOffline}>
           <Text style={{ fontSize: 20 }}>🔄</Text>
@@ -398,6 +429,7 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           visible={modalMovimientoVisible}
           onDismiss={() => setModalMovimientoVisible(false)}
           tiendaId={tienda.id}
+          tipoInicial={tipoMovimientoInicial}
           onSuccess={cargarDatos}
         />
       )}
@@ -488,19 +520,37 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
   },
-  btnRow: {
+  cardHeroTotal: {
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    elevation: 2,
+  },
+  montoTotalRojoHero: {
+    color: '#c62828',
+    fontWeight: 'bold',
+    fontSize: 38,
+    marginVertical: 4,
+  },
+  actionRowHero: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 12,
-  },
-  btnHalf: {
-    flex: 1,
-    borderRadius: 12,
-  },
-  btnRegistrarMovimientoTop: {
-    borderRadius: 14,
     marginBottom: 16,
+  },
+  btnActionCustom: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
     elevation: 3,
+  },
+  btnActionCustomText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginTop: -2,
   },
   bannerOffline: {
     flexDirection: 'row',

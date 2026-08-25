@@ -4,6 +4,8 @@ import { clienteRepository } from './clienteRepository';
 import { motorSincronizacion } from '../sync/syncEngine';
 import { generarUUID } from '../utils/uuid';
 
+export type PeriodoFiltroCartera = 'DIA' | 'SEMANA' | '15DIAS' | 'MES' | 'SIEMPRE';
+
 export interface ResultadoFiado {
   movimiento: Movimiento;
   limiteSuperado: boolean;
@@ -99,7 +101,7 @@ export class MovimientoRepository {
 
     const db = obtenerBaseDatos();
     const saldoAnterior = cliente.saldoActual;
-    const nuevoSaldo = Math.max(0, saldoAnterior - monto);
+    const nuevoSaldo = saldoAnterior - monto;
     const id = generarUUID();
     const ahora = new Date().toISOString();
 
@@ -167,7 +169,7 @@ export class MovimientoRepository {
     // Revertir el saldo según el tipo original
     let nuevoSaldo = saldoAnterior;
     if (tipoOriginal === 'FIADO') {
-      nuevoSaldo = Math.max(0, saldoAnterior - monto);
+      nuevoSaldo = saldoAnterior - monto;
     } else if (tipoOriginal === 'PAGO') {
       nuevoSaldo = saldoAnterior + monto;
     }
@@ -233,25 +235,63 @@ export class MovimientoRepository {
 
   /**
    * Obtiene el resumen de cartera (Total Fiado acumulado vs Total Recuperado en Pagos)
+   * Filtra opcionalmente por periodo de tiempo: DIA, SEMANA, 15DIAS, MES o SIEMPRE.
    */
-  public async obtenerResumenCartera(tiendaId: string): Promise<{ totalFiado: number; totalRecuperado: number }> {
+  public async obtenerResumenCartera(
+    tiendaId: string,
+    periodo: PeriodoFiltroCartera = 'SIEMPRE'
+  ): Promise<{ totalFiado: number; totalRecuperado: number }> {
     const db = obtenerBaseDatos();
-    const resFiado = await db.getFirstAsync<{ total: number }>(
-      `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'FIADO'`,
-      [tiendaId]
-    );
-    const resPago = await db.getFirstAsync<{ total: number }>(
-      `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'PAGO'`,
-      [tiendaId]
-    );
 
-    const clientes = await clienteRepository.obtenerClientes(tiendaId);
-    const sumaSaldosActuales = clientes.reduce((acc, c) => acc + (c.saldoActual || 0), 0);
+    let fechaInicioIso: string | null = null;
+    const ahora = new Date();
+
+    if (periodo === 'DIA') {
+      const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      fechaInicioIso = inicioHoy.toISOString();
+    } else if (periodo === 'SEMANA') {
+      const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
+      fechaInicioIso = hace7Dias.toISOString();
+    } else if (periodo === '15DIAS') {
+      const hace15Dias = new Date(ahora.getTime() - 15 * 24 * 60 * 60 * 1000);
+      fechaInicioIso = hace15Dias.toISOString();
+    } else if (periodo === 'MES') {
+      const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
+      fechaInicioIso = hace30Dias.toISOString();
+    }
+
+    let resFiado: { total: number } | null;
+    let resPago: { total: number } | null;
+
+    if (fechaInicioIso) {
+      resFiado = await db.getFirstAsync<{ total: number }>(
+        `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'FIADO' AND fecha_creacion >= ?`,
+        [tiendaId, fechaInicioIso]
+      );
+      resPago = await db.getFirstAsync<{ total: number }>(
+        `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'PAGO' AND fecha_creacion >= ?`,
+        [tiendaId, fechaInicioIso]
+      );
+    } else {
+      resFiado = await db.getFirstAsync<{ total: number }>(
+        `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'FIADO'`,
+        [tiendaId]
+      );
+      resPago = await db.getFirstAsync<{ total: number }>(
+        `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'PAGO'`,
+        [tiendaId]
+      );
+    }
 
     const fiadoMovimientos = resFiado?.total ?? 0;
     const pagoMovimientos = resPago?.total ?? 0;
 
-    const totalFiadoCalculado = Math.max(fiadoMovimientos, pagoMovimientos + sumaSaldosActuales);
+    let totalFiadoCalculado = fiadoMovimientos;
+    if (periodo === 'SIEMPRE') {
+      const clientes = await clienteRepository.obtenerClientes(tiendaId);
+      const sumaSaldosActuales = clientes.reduce((acc, c) => acc + (c.saldoActual > 0 ? c.saldoActual : 0), 0);
+      totalFiadoCalculado = Math.max(fiadoMovimientos, pagoMovimientos + sumaSaldosActuales);
+    }
 
     return {
       totalFiado: totalFiadoCalculado,

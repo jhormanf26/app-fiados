@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, TextInput, Button, Checkbox, IconButton, HelperText } from 'react-native-paper';
+import { Text, TextInput, Button, Checkbox, IconButton, HelperText, Menu } from 'react-native-paper';
 import { useAuth } from '../auth/AuthContext';
 import { useAppTheme } from '../theme/ThemeContext';
+
+const CATEGORIAS_TIENDA = [
+  'Supermercado / Abarrotes',
+  'Granero / Tienda de Barrio',
+  'Panadería / Pastelería',
+  'Carnicería / Fruver',
+  'Droguería / Farmacia',
+  'Ferretería / Materiales',
+  'Papelería / Variedades',
+  'Restaurante / Cafetería',
+  'Licorería / Cigarrería',
+  'Otro Negocio',
+];
 
 export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { isDarkMode, colors } = useAppTheme();
@@ -11,6 +24,7 @@ export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation
   const [nombreTienda, setNombreTienda] = useState('');
   const [nit, setNit] = useState('');
   const [categoria, setCategoria] = useState('Supermercado / Abarrotes');
+  const [menuCategoriaVisible, setMenuCategoriaVisible] = useState(false);
   const [direccion, setDireccion] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -129,18 +143,49 @@ export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation
             Detalles Operativos
           </Text>
 
-          <TextInput
-            label="Categoría del negocio"
-            value={categoria}
-            onChangeText={setCategoria}
-            mode="outlined"
-            activeOutlineColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-            outlineColor={colors.border}
-            textColor={colors.text}
-            contentStyle={{ color: colors.text }}
-            style={[styles.input, { backgroundColor: colors.inputBackground }]}
-            right={<TextInput.Icon icon="chevron-down" color={colors.textSecondary} />}
-          />
+          <Menu
+            visible={menuCategoriaVisible}
+            onDismiss={() => setMenuCategoriaVisible(false)}
+            contentStyle={{ backgroundColor: colors.card }}
+            anchor={
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setMenuCategoriaVisible(true)}
+              >
+                <TextInput
+                  label="Categoría del negocio *"
+                  value={categoria}
+                  editable={false}
+                  pointerEvents="none"
+                  mode="outlined"
+                  activeOutlineColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+                  outlineColor={colors.border}
+                  textColor={colors.text}
+                  contentStyle={{ color: colors.text }}
+                  style={[styles.input, { backgroundColor: colors.inputBackground }]}
+                  right={
+                    <TextInput.Icon
+                      icon="chevron-down"
+                      color={colors.textSecondary}
+                      onPress={() => setMenuCategoriaVisible(true)}
+                    />
+                  }
+                />
+              </TouchableOpacity>
+            }
+          >
+            {CATEGORIAS_TIENDA.map((cat) => (
+              <Menu.Item
+                key={cat}
+                onPress={() => {
+                  setCategoria(cat);
+                  setMenuCategoriaVisible(false);
+                }}
+                title={cat}
+                titleStyle={{ color: colors.text }}
+              />
+            ))}
+          </Menu>
 
           <TextInput
             label="Dirección / Ubicación"

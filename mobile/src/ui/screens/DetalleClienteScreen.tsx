@@ -191,17 +191,60 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
         {/* Tarjeta ESTADO DE CRÉDITO Stitch */}
         <Card style={[styles.cardCredito, { backgroundColor: colors.card }]} mode="outlined">
           <Card.Content>
-            <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
-              ESTADO DE CRÉDITO
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1 }}>
+                ESTADO DE CRÉDITO
+              </Text>
+
+              <View
+                style={{
+                  backgroundColor: cliente.saldoActual < 0
+                    ? (isDarkMode ? '#1b3320' : '#e8f5e9')
+                    : limiteSuperado
+                    ? (isDarkMode ? '#3b1c1c' : '#fde8e8')
+                    : (isDarkMode ? '#1b3320' : '#e8f5e9'),
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  borderColor: cliente.saldoActual < 0
+                    ? (isDarkMode ? '#2e6b38' : '#c8e6c9')
+                    : limiteSuperado
+                    ? (isDarkMode ? '#7f2626' : '#f5c6c6')
+                    : (isDarkMode ? '#2e6b38' : '#c8e6c9'),
+                  borderWidth: 1,
+                }}
+              >
+                <Text
+                  style={{
+                    color: cliente.saldoActual < 0
+                      ? (isDarkMode ? '#81c784' : '#2e7d32')
+                      : limiteSuperado
+                      ? (isDarkMode ? '#ff8a80' : '#d32f2f')
+                      : (isDarkMode ? '#81c784' : '#2e7d32'),
+                    fontWeight: 'bold',
+                    fontSize: 12,
+                  }}
+                >
+                  {cliente.saldoActual < 0 ? '✨ Saldo a Favor' : `${porcentajeUtilizado}% Utilizado`}
+                </Text>
+              </View>
+            </View>
 
             <View style={styles.rowCredito}>
               <View>
                 <Text variant="bodySmall" style={{ color: colors.textSecondary }}>
-                  Deuda Actual
+                  {cliente.saldoActual < 0 ? 'Saldo a Favor' : 'Deuda Actual'}
                 </Text>
-                <Text variant="headlineMedium" style={styles.montoDeudaRojo}>
-                  ${(cliente?.saldoActual ?? 0).toLocaleString()}
+                <Text
+                  variant="headlineMedium"
+                  style={{
+                    color: cliente.saldoActual < 0 ? (isDarkMode ? '#81c784' : '#2e7d32') : '#ef5350',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {cliente.saldoActual < 0
+                    ? `+$${Math.abs(cliente.saldoActual).toLocaleString()}`
+                    : `$${(cliente.saldoActual ?? 0).toLocaleString()}`}
                 </Text>
               </View>
 
@@ -219,18 +262,8 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
             <ProgressBar
               progress={progresoBarra}
               color={limiteSuperado ? '#ef5350' : '#81c784'}
-              style={{ height: 8, borderRadius: 4, marginVertical: 10 }}
+              style={{ height: 8, borderRadius: 4, marginTop: 10 }}
             />
-
-            <Text
-              style={{
-                color: limiteSuperado ? '#ef5350' : '#81c784',
-                fontWeight: 'bold',
-                fontSize: 13,
-              }}
-            >
-              {porcentajeUtilizado}% Utilizado
-            </Text>
           </Card.Content>
         </Card>
 

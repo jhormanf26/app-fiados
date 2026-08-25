@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { Modal, Portal, Text, TextInput, Button, Switch, HelperText } from 'react-native-paper';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
 import { Cliente } from '../../core/types/database';
+import { useAppTheme } from '../theme/ThemeContext';
+import { formatearMonedaInput, desformatearMonedaInput } from '../../core/utils/currency';
 
 interface Props {
   visible: boolean;
@@ -19,6 +21,7 @@ export const CrearClienteModal: React.FC<Props> = ({
   clienteEditar,
   onSuccess,
 }) => {
+  const { isDarkMode, colors } = useAppTheme();
   const [nombre, setNombre] = useState('');
   const [numeroDocumento, setNumeroDocumento] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -28,6 +31,8 @@ export const CrearClienteModal: React.FC<Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
+  const primaryAccent = isDarkMode ? '#bb86fc' : '#6200ee';
+
   useEffect(() => {
     if (clienteEditar) {
       setNombre(clienteEditar.nombre);
@@ -36,7 +41,7 @@ export const CrearClienteModal: React.FC<Props> = ({
       setCorreo(clienteEditar.correo ?? '');
       setLimitePersonalizado(
         clienteEditar.limiteCreditoPersonalizado !== undefined
-          ? clienteEditar.limiteCreditoPersonalizado.toString()
+          ? formatearMonedaInput(clienteEditar.limiteCreditoPersonalizado)
           : ''
       );
       setNotificacionesAutorizadas(clienteEditar.notificacionesAutorizadas);
@@ -65,7 +70,7 @@ export const CrearClienteModal: React.FC<Props> = ({
       return;
     }
 
-    const limiteVal = limitePersonalizado.trim() ? parseFloat(limitePersonalizado) : undefined;
+    const limiteVal = limitePersonalizado.trim() ? desformatearMonedaInput(limitePersonalizado) : undefined;
 
     setCargando(true);
     try {
@@ -101,8 +106,15 @@ export const CrearClienteModal: React.FC<Props> = ({
 
   return (
     <Portal>
-      <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.container}>
-        <Text variant="titleLarge" style={styles.titulo}>
+      <Modal
+        visible={visible}
+        onDismiss={onDismiss}
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff' },
+        ]}
+      >
+        <Text variant="titleLarge" style={[styles.titulo, { color: colors.text }]}>
           {clienteEditar ? '✏️ Editar Cliente' : '👤 Crear Nuevo Cliente'}
         </Text>
 
@@ -113,13 +125,14 @@ export const CrearClienteModal: React.FC<Props> = ({
             setNombre(val);
             setError(null);
           }}
-          textColor="#ffffff"
-          contentStyle={{ color: '#ffffff' }}
-          activeOutlineColor="#bb86fc"
-          outlineColor="#555555"
+          textColor={colors.text}
+          contentStyle={{ color: colors.text }}
+          activeOutlineColor={primaryAccent}
+          outlineColor={colors.border}
           mode="outlined"
-          style={styles.input}
-          left={<TextInput.Icon icon="account" color="#bb86fc" />}
+          style={[styles.input, { backgroundColor: colors.inputBackground }]}
+          placeholderTextColor={colors.textSecondary}
+          left={<TextInput.Icon icon="account" color={primaryAccent} />}
         />
 
         <TextInput
@@ -130,13 +143,14 @@ export const CrearClienteModal: React.FC<Props> = ({
             setError(null);
           }}
           keyboardType="numeric"
-          textColor="#ffffff"
-          contentStyle={{ color: '#ffffff' }}
-          activeOutlineColor="#bb86fc"
-          outlineColor="#555555"
+          textColor={colors.text}
+          contentStyle={{ color: colors.text }}
+          activeOutlineColor={primaryAccent}
+          outlineColor={colors.border}
           mode="outlined"
-          style={styles.input}
-          left={<TextInput.Icon icon="card-account-details" color="#bb86fc" />}
+          style={[styles.input, { backgroundColor: colors.inputBackground }]}
+          placeholderTextColor={colors.textSecondary}
+          left={<TextInput.Icon icon="card-account-details" color={primaryAccent} />}
         />
 
         <TextInput
@@ -147,13 +161,14 @@ export const CrearClienteModal: React.FC<Props> = ({
             setError(null);
           }}
           keyboardType="phone-pad"
-          textColor="#ffffff"
-          contentStyle={{ color: '#ffffff' }}
-          activeOutlineColor="#bb86fc"
-          outlineColor="#555555"
+          textColor={colors.text}
+          contentStyle={{ color: colors.text }}
+          activeOutlineColor={primaryAccent}
+          outlineColor={colors.border}
           mode="outlined"
-          style={styles.input}
-          left={<TextInput.Icon icon="phone" color="#bb86fc" />}
+          style={[styles.input, { backgroundColor: colors.inputBackground }]}
+          placeholderTextColor={colors.textSecondary}
+          left={<TextInput.Icon icon="phone" color={primaryAccent} />}
         />
 
         <TextInput
@@ -163,39 +178,40 @@ export const CrearClienteModal: React.FC<Props> = ({
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
-          textColor="#ffffff"
-          contentStyle={{ color: '#ffffff' }}
-          activeOutlineColor="#bb86fc"
-          outlineColor="#555555"
+          textColor={colors.text}
+          contentStyle={{ color: colors.text }}
+          activeOutlineColor={primaryAccent}
+          outlineColor={colors.border}
           mode="outlined"
-          style={styles.input}
-          left={<TextInput.Icon icon="email" color="#bb86fc" />}
+          style={[styles.input, { backgroundColor: colors.inputBackground }]}
+          placeholderTextColor={colors.textSecondary}
+          left={<TextInput.Icon icon="email" color={primaryAccent} />}
         />
 
         <TextInput
           label="Límite Crédito Personalizado ($ opcional)"
           value={limitePersonalizado}
-          onChangeText={setLimitePersonalizado}
+          onChangeText={(val) => setLimitePersonalizado(formatearMonedaInput(val))}
           keyboardType="numeric"
-          textColor="#ffffff"
-          contentStyle={{ color: '#ffffff' }}
-          activeOutlineColor="#bb86fc"
-          outlineColor="#555555"
+          textColor={colors.text}
+          contentStyle={{ color: colors.text }}
+          activeOutlineColor={primaryAccent}
+          outlineColor={colors.border}
           mode="outlined"
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.inputBackground }]}
           placeholder="Dejar vacío para usar el predeterminado"
-          placeholderTextColor="#888888"
-          left={<TextInput.Icon icon="shield-alert-outline" color="#bb86fc" />}
+          placeholderTextColor={colors.textSecondary}
+          left={<TextInput.Icon icon="shield-alert-outline" color={primaryAccent} />}
         />
 
         <View style={styles.switchRow}>
-          <Text variant="bodyMedium" style={{ color: '#fff', flex: 1 }}>
+          <Text variant="bodyMedium" style={{ color: colors.text, flex: 1 }}>
             ¿Autoriza notificaciones por correo?
           </Text>
           <Switch
             value={notificacionesAutorizadas}
             onValueChange={setNotificacionesAutorizadas}
-            color="#bb86fc"
+            color={primaryAccent}
           />
         </View>
 
@@ -206,7 +222,12 @@ export const CrearClienteModal: React.FC<Props> = ({
         )}
 
         <View style={styles.btnRow}>
-          <Button mode="outlined" onPress={onDismiss} style={styles.btn}>
+          <Button
+            mode="outlined"
+            onPress={onDismiss}
+            textColor={colors.textSecondary}
+            style={[styles.btn, { borderColor: colors.border }]}
+          >
             Cancelar
           </Button>
           <Button
@@ -214,7 +235,8 @@ export const CrearClienteModal: React.FC<Props> = ({
             onPress={handleGuardar}
             loading={cargando}
             disabled={cargando}
-            buttonColor="#6200ee"
+            buttonColor={primaryAccent}
+            textColor={isDarkMode ? '#000000' : '#ffffff'}
             style={styles.btn}
           >
             Guardar
@@ -227,19 +249,16 @@ export const CrearClienteModal: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1e1e1e',
     padding: 20,
     margin: 20,
     borderRadius: 16,
   },
   titulo: {
-    color: '#ffffff',
     fontWeight: 'bold',
     marginBottom: 16,
   },
   input: {
     marginBottom: 10,
-    backgroundColor: '#121212',
   },
   switchRow: {
     flexDirection: 'row',

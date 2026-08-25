@@ -5,6 +5,7 @@ import { movimientoRepository } from '../../core/repositories/movimientoReposito
 import { clienteRepository } from '../../core/repositories/clienteRepository';
 import { Cliente } from '../../core/types/database';
 import { useAppTheme } from '../theme/ThemeContext';
+import { formatearMonedaInput, desformatearMonedaInput, formatearCOP } from '../../core/utils/currency';
 
 interface Props {
   visible: boolean;
@@ -12,7 +13,17 @@ interface Props {
   tiendaId: string;
   clienteId?: string;
   nombreCliente?: string;
+  tipoInicial?: 'FIADO' | 'PAGO';
   onSuccess: () => void;
+}
+
+interface AlertaLimiteData {
+  nombreCliente: string;
+  saldoActual: number;
+  limiteEfectivo: number;
+  valorFiado: number;
+  nuevoSaldo: number;
+  exceso: number;
 }
 
 export const NuevoMovimientoModal: React.FC<Props> = ({
@@ -21,6 +32,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
   tiendaId,
   clienteId: propClienteId,
   nombreCliente: propNombreCliente,
+  tipoInicial,
   onSuccess,
 }) => {
   const { colors, isDarkMode } = useAppTheme();
@@ -29,6 +41,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
   const [descripcion, setDescripcion] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [alertaLimiteData, setAlertaLimiteData] = useState<AlertaLimiteData | null>(null);
 
   // Selección de cliente con buscador
   const [listaClientes, setListaClientes] = useState<Cliente[]>([]);
@@ -43,6 +56,10 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
       setDescripcion('');
       setBuscadoCliente('');
       setMostrarBuscadorModal(false);
+      setAlertaLimiteData(null);
+      if (tipoInicial) {
+        setTipo(tipoInicial);
+      }
 
       if (propClienteId && propNombreCliente) {
         setClienteSeleccionado({
@@ -70,7 +87,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
     }
   }, [visible, propClienteId, propNombreCliente, tiendaId]);
 
-  const handleGuardar = async () => {
+  const handleGuardar = async (autorizarExceso: boolean = false) => {
     setError(null);
 
     const targetClienteId = propClienteId || clienteSeleccionado?.id;
@@ -79,7 +96,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
       return;
     }
 
-    const valorMonto = parseFloat(monto.replace(/[^0-9.]/g, ''));
+    const valorMonto = desformatearMonedaInput(monto);
     if (isNaN(valorMonto) || valorMonto <= 0) {
       setError('Por favor ingresa un monto válido mayor a cero.');
       return;
@@ -88,6 +105,32 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
     setCargando(true);
     try {
       if (tipo === 'FIADO') {
+        // Verificar límite de crédito antes de proceder si no ha sido autorizado previamente
+        if (!autorizarExceso) {
+          const clienteObj = propClienteId
+            ? await clienteRepository.obtenerClientePorId(propClienteId)
+            : clienteSeleccionado;
+
+          if (clienteObj) {
+            const limiteEfectivo = await clienteRepository.obtenerLimiteCreditoEfectivo(clienteObj);
+            const saldoActual = clienteObj.saldoActual ?? 0;
+            const nuevoSaldo = saldoActual + valorMonto;
+
+            if (nuevoSaldo > limiteEfectivo) {
+              setCargando(false);
+              setAlertaLimiteData({
+                nombreCliente: clienteObj.nombre,
+                saldoActual,
+                limiteEfectivo,
+                valorFiado: valorMonto,
+                nuevoSaldo,
+                exceso: nuevoSaldo - limiteEfectivo,
+              });
+              return;
+            }
+          }
+        }
+
         await movimientoRepository.agregarFiado(
           tiendaId,
           targetClienteId,
@@ -105,6 +148,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
 
       setMonto('');
       setDescripcion('');
+      setAlertaLimiteData(null);
       onSuccess();
       onDismiss();
     } catch (err: any) {
@@ -170,7 +214,10 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
                   </Text>
                   {clienteSeleccionado && (
                     <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-                      Doc: {clienteSeleccionado.numeroDocumento} | Deuda: ${(clienteSeleccionado.saldoActual ?? 0).toLocaleString()}
+                      Doc: {clienteSeleccionado.numeroDocumento} |{' '}
+                      {clienteSeleccionado.saldoActual < 0
+                        ? `✨ Favor: $${Math.abs(clienteSeleccionado.saldoActual).toLocaleString()}`
+                        : `Deuda: $${(clienteSeleccionado.saldoActual ?? 0).toLocaleString()}`}
                     </Text>
                   )}
                 </View>
@@ -200,7 +247,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
           label="Monto ($) *"
           value={monto}
           onChangeText={(val) => {
-            setMonto(val);
+            setMonto(formatearMonedaInput(val));
             setError(null);
           }}
           keyboardType="numeric"
@@ -212,6 +259,13 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
           style={[styles.input, { backgroundColor: colors.inputBackground }]}
           left={<TextInput.Affix text="$ " />}
         />
+
+        {/* Nota Informativa Verde si el pago genera Saldo a Favor */}
+        {tipo === 'PAGO' && clienteSeleccionado && desformatearMonedaInput(monto) > clienteSeleccionado.saldoActual && (
+          <Text style={{ color: isDarkMode ? '#81c784' : '#2e7d32', fontSize: 12, marginTop: -6, marginBottom: 10, fontStyle: 'italic', fontWeight: '500' }}>
+            💡 Este pago generará un Saldo a Favor de {formatearCOP(desformatearMonedaInput(monto) - clienteSeleccionado.saldoActual)} para el cliente.
+          </Text>
+        )}
 
         {/* Descripción */}
         <TextInput
@@ -242,7 +296,7 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
 
           <Button
             mode="contained"
-            onPress={handleGuardar}
+            onPress={() => handleGuardar(false)}
             loading={cargando}
             disabled={cargando || (requiereSelector && !clienteSeleccionado)}
             buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
@@ -339,6 +393,84 @@ export const NuevoMovimientoModal: React.FC<Props> = ({
           Cerrar Buscador
         </Button>
       </Modal>
+
+      {/* Sub-Modal Alerta de Confirmación Límite de Crédito Superado */}
+      <Modal
+        visible={Boolean(alertaLimiteData)}
+        onDismiss={() => setAlertaLimiteData(null)}
+        contentContainerStyle={[
+          styles.containerAlerta,
+          { backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff' },
+        ]}
+      >
+        <View style={styles.alertaIconHeader}>
+          <Text style={{ fontSize: 28 }}>⚠️</Text>
+          <Text variant="titleMedium" style={{ color: '#c62828', fontWeight: 'bold', flex: 1 }}>
+            ¡Atención! Límite de Crédito Superado
+          </Text>
+        </View>
+
+        {alertaLimiteData && (
+          <View
+            style={[
+              styles.alertaBoxBody,
+              {
+                backgroundColor: isDarkMode ? '#2c1c1c' : '#fde8e8',
+                borderColor: isDarkMode ? '#7f2626' : '#f5c6c6',
+              },
+            ]}
+          >
+            <Text variant="bodyMedium" style={{ color: isDarkMode ? '#ffcdd2' : '#b71c1c', lineHeight: 22 }}>
+              El cliente <Text style={{ fontWeight: 'bold' }}>{alertaLimiteData.nombreCliente}</Text> tiene un límite de crédito de{' '}
+              <Text style={{ fontWeight: 'bold' }}>{formatearCOP(alertaLimiteData.limiteEfectivo)}</Text>.
+            </Text>
+
+            <View style={{ marginVertical: 10, gap: 4 }}>
+              <Text style={{ color: isDarkMode ? '#ffcdd2' : '#b71c1c', fontSize: 13 }}>
+                • Deuda Actual: <Text style={{ fontWeight: 'bold' }}>{formatearCOP(alertaLimiteData.saldoActual)}</Text>
+              </Text>
+              <Text style={{ color: isDarkMode ? '#ffcdd2' : '#b71c1c', fontSize: 13 }}>
+                • Valor Nuevo Fiado: <Text style={{ fontWeight: 'bold' }}>{formatearCOP(alertaLimiteData.valorFiado)}</Text>
+              </Text>
+              <Divider style={{ marginVertical: 6, backgroundColor: isDarkMode ? '#7f2626' : '#f5c6c6' }} />
+              <Text style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: 15 }}>
+                📈 La deuda subirá a: {formatearCOP(alertaLimiteData.nuevoSaldo)}
+              </Text>
+              <Text style={{ color: isDarkMode ? '#ef9a9a' : '#c62828', fontSize: 12, fontStyle: 'italic' }}>
+                (Excede el límite establecido por {formatearCOP(alertaLimiteData.exceso)})
+              </Text>
+            </View>
+
+            <Text variant="bodyMedium" style={{ color: isDarkMode ? '#ffffff' : '#1c1b1f', fontWeight: '600', marginTop: 4 }}>
+              ¿Deseas autorizar y registrar este fiado de todas formas?
+            </Text>
+          </View>
+        )}
+
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+          <Button
+            mode="outlined"
+            onPress={() => setAlertaLimiteData(null)}
+            textColor={colors.textSecondary}
+            style={{ borderRadius: 10, borderColor: colors.border }}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            mode="contained"
+            buttonColor="#d32f2f"
+            textColor="#ffffff"
+            loading={cargando}
+            disabled={cargando}
+            onPress={() => handleGuardar(true)}
+            style={{ borderRadius: 10 }}
+            icon="alert-check"
+          >
+            Sí, Autorizar Fiado
+          </Button>
+        </View>
+      </Modal>
     </Portal>
   );
 };
@@ -354,6 +486,22 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 16,
     maxHeight: '80%',
+  },
+  containerAlerta: {
+    padding: 20,
+    margin: 18,
+    borderRadius: 16,
+  },
+  alertaIconHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  alertaBoxBody: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   titulo: {
     fontWeight: 'bold',

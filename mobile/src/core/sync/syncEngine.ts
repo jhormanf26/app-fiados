@@ -1,4 +1,3 @@
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { obtenerBaseDatos } from '../database/db';
 import { ItemColaSincronizacion, ResumenSincronizacion, EntidadSincronizacion, AccionSincronizacion } from '../types/database';
 import { generarUUID } from '../utils/uuid';
@@ -15,16 +14,21 @@ class MotorSincronizacion {
   }
 
   private iniciarEscuchadorRed() {
-    NetInfo.addEventListener((state: NetInfoState) => {
-      const enLinea = Boolean(state.isConnected && state.isInternetReachable !== false);
-      if (this.estaEnLinea !== enLinea) {
-        this.estaEnLinea = enLinea;
-        this.notificarEscuchadores(enLinea);
-        if (enLinea) {
-          this.dispararSincronizacion();
+    try {
+      const NetInfo = require('@react-native-community/netinfo').default;
+      NetInfo.addEventListener((state: any) => {
+        const enLinea = Boolean(state.isConnected && state.isInternetReachable !== false);
+        if (this.estaEnLinea !== enLinea) {
+          this.estaEnLinea = enLinea;
+          this.notificarEscuchadores(enLinea);
+          if (enLinea) {
+            this.dispararSincronizacion();
+          }
         }
-      }
-    });
+      });
+    } catch {
+      this.estaEnLinea = true;
+    }
   }
 
   public suscribir(escuchador: EscuchadorRed): () => void {

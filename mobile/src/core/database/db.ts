@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-import * as SQLite from 'expo-sqlite';
 import { TODOS_LOS_ESQUEMAS } from './schema';
 
 const NOMBRE_BD = 'fiados_local_v2.db';
@@ -299,13 +297,21 @@ let instanciaBD: AdaptadorBaseDatos | null = null;
 
 export function obtenerBaseDatos(): AdaptadorBaseDatos {
   if (!instanciaBD) {
-    const usaAdaptadorWeb =
-      Platform.OS === 'web' || typeof SharedArrayBuffer === 'undefined';
+    let isWeb = false;
+    try {
+      const RN = require('react-native');
+      isWeb = RN?.Platform?.OS === 'web';
+    } catch {
+      isWeb = true;
+    }
+
+    const usaAdaptadorWeb = isWeb || typeof SharedArrayBuffer === 'undefined';
 
     if (usaAdaptadorWeb) {
       console.log('[SQLite] Usando adaptador Web (LocalStorage) para la vista previa del navegador.');
       instanciaBD = new AdaptadorBaseDatosWeb();
     } else {
+      const SQLite = require('expo-sqlite');
       instanciaBD = SQLite.openDatabaseSync(NOMBRE_BD) as unknown as AdaptadorBaseDatos;
     }
   }
