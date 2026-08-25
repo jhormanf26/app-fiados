@@ -1,8 +1,8 @@
-import * as Crypto from 'expo-crypto';
 import { obtenerBaseDatos } from '../database/db';
 import { Cliente } from '../types/database';
 import { motorSincronizacion } from '../sync/syncEngine';
 import { tiendaRepository } from './tiendaRepository';
+import { generarUUID } from '../utils/uuid';
 
 export class ClienteRepository {
   /**
@@ -54,7 +54,7 @@ export class ClienteRepository {
     datos: Omit<Cliente, 'id' | 'tiendaId' | 'saldoActual' | 'fechaCreacion' | 'fechaActualizacion'>
   ): Promise<Cliente> {
     const db = obtenerBaseDatos();
-    const id = Crypto.randomUUID();
+    const id = generarUUID();
     const ahora = new Date().toISOString();
 
     const nuevoCliente: Cliente = {

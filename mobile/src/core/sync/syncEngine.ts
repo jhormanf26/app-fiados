@@ -1,7 +1,7 @@
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import * as Crypto from 'expo-crypto';
 import { obtenerBaseDatos } from '../database/db';
 import { ItemColaSincronizacion, ResumenSincronizacion, EntidadSincronizacion, AccionSincronizacion } from '../types/database';
+import { generarUUID } from '../utils/uuid';
 
 type EscuchadorRed = (estaEnLinea: boolean) => void;
 
@@ -46,7 +46,7 @@ class MotorSincronizacion {
     payload: object
   ): Promise<string> {
     const db = obtenerBaseDatos();
-    const id = Crypto.randomUUID();
+    const id = generarUUID();
     const fechaCreacion = new Date().toISOString();
     const payloadStr = JSON.stringify(payload);
 

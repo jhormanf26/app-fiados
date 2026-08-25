@@ -1,7 +1,7 @@
-import * as Crypto from 'expo-crypto';
 import { obtenerBaseDatos } from '../database/db';
 import { Tienda } from '../types/database';
 import { motorSincronizacion } from '../sync/syncEngine';
+import { generarUUID } from '../utils/uuid';
 
 export class TiendaRepository {
   /**
@@ -63,7 +63,7 @@ export class TiendaRepository {
       return actualizada;
     } else {
       const nuevaTienda: Tienda = {
-        id: Crypto.randomUUID(),
+        id: generarUUID(),
         ...datosTienda,
         fechaCreacion: ahora,
         fechaActualizacion: ahora,

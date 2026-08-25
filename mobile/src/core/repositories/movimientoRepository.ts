@@ -1,8 +1,8 @@
-import * as Crypto from 'expo-crypto';
 import { obtenerBaseDatos } from '../database/db';
 import { Movimiento, TipoMovimiento } from '../types/database';
 import { clienteRepository } from './clienteRepository';
 import { motorSincronizacion } from '../sync/syncEngine';
+import { generarUUID } from '../utils/uuid';
 
 export interface ResultadoFiado {
   movimiento: Movimiento;
@@ -35,7 +35,7 @@ export class MovimientoRepository {
     const nuevoSaldo = saldoAnterior + monto;
     const limiteSuperado = nuevoSaldo > limiteEfectivo;
 
-    const id = Crypto.randomUUID();
+    const id = generarUUID();
     const ahora = new Date().toISOString();
 
     const movimiento: Movimiento = {
@@ -96,7 +96,7 @@ export class MovimientoRepository {
     const db = obtenerBaseDatos();
     const saldoAnterior = cliente.saldoActual;
     const nuevoSaldo = Math.max(0, saldoAnterior - monto);
-    const id = Crypto.randomUUID();
+    const id = generarUUID();
     const ahora = new Date().toISOString();
 
     const movimiento: Movimiento = {
@@ -170,7 +170,7 @@ export class MovimientoRepository {
 
     const movimientoAnulado: Movimiento = {
       id: row.id,
-      tiendaId: row.tienda_id,
+      tiendaId: row.cliente_id,
       clienteId: row.cliente_id,
       tipo: 'ANULACION',
       monto: row.monto,
