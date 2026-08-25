@@ -12,119 +12,119 @@ import {
   List,
   HelperText,
 } from 'react-native-paper';
-import { initDatabase } from './src/core/database/db';
-import { syncEngine } from './src/core/sync/syncEngine';
-import { storeRepository } from './src/core/repositories/storeRepository';
-import { customerRepository } from './src/core/repositories/customerRepository';
-import { transactionRepository } from './src/core/repositories/transactionRepository';
-import { Store, Customer, Transaction, SyncSummary } from './src/core/types/database';
+import { inicializarBaseDatos } from './src/core/database/db';
+import { motorSincronizacion } from './src/core/sync/syncEngine';
+import { tiendaRepository } from './src/core/repositories/tiendaRepository';
+import { clienteRepository } from './src/core/repositories/clienteRepository';
+import { movimientoRepository } from './src/core/repositories/movimientoRepository';
+import { Tienda, Cliente, Movimiento, ResumenSincronizacion } from './src/core/types/database';
 
 export default function App() {
-  const [dbReady, setDbReady] = useState<boolean | null>(null);
-  const [store, setStore] = useState<Store | null>(null);
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [history, setHistory] = useState<Transaction[]>([]);
-  const [limitWarning, setLimitWarning] = useState<string | null>(null);
-  const [syncSummary, setSyncSummary] = useState<SyncSummary>({
-    pendingCount: 0,
-    isOnline: false,
+  const [bdLista, setBdLista] = useState<boolean | null>(null);
+  const [tienda, setTienda] = useState<Tienda | null>(null);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [historial, setHistorial] = useState<Movimiento[]>([]);
+  const [alertaLimite, setAlertaLimite] = useState<string | null>(null);
+  const [resumenSincronizacion, setResumenSincronizacion] = useState<ResumenSincronizacion>({
+    pendientesCount: 0,
+    estaEnLinea: false,
   });
 
   useEffect(() => {
-    async function prepareApp() {
-      const isDbOk = await initDatabase();
-      setDbReady(isDbOk);
-      if (isDbOk) {
-        await loadDemoData();
+    async function prepararApp() {
+      const estaBdOk = await inicializarBaseDatos();
+      setBdLista(estaBdOk);
+      if (estaBdOk) {
+        await cargarDatosDemo();
       }
     }
-    prepareApp();
+    prepararApp();
 
-    const unsubscribe = syncEngine.subscribe(async (isOnline) => {
-      const summary = await syncEngine.getSummary();
-      setSyncSummary({ ...summary, isOnline });
+    const desuscribir = motorSincronizacion.suscribir(async (estaEnLinea) => {
+      const resumen = await motorSincronizacion.obtenerResumen();
+      setResumenSincronizacion({ ...resumen, estaEnLinea });
     });
 
-    return () => unsubscribe();
+    return () => desuscribir();
   }, []);
 
-  const loadDemoData = async () => {
-    // 1. Get or Create Store
-    let currentStore = await storeRepository.getStore();
-    if (!currentStore) {
-      currentStore = await storeRepository.saveStore({
-        name: 'Supermercado La Esperanza',
-        ownerName: 'Carlos Mendoza',
-        ownerDocument: '1098765432',
-        phone: '3001234567',
-        email: 'tienda@laesperanza.com',
-        defaultCreditLimit: 100000,
+  const cargarDatosDemo = async () => {
+    // 1. Obtener o Crear Tienda Demo
+    let tiendaActual = await tiendaRepository.obtenerTienda();
+    if (!tiendaActual) {
+      tiendaActual = await tiendaRepository.guardarTienda({
+        nombre: 'Supermercado La Esperanza',
+        nombrePropietario: 'Carlos Mendoza',
+        documentoPropietario: '1098765432',
+        telefono: '3001234567',
+        correo: 'tienda@laesperanza.com',
+        limiteCreditoPredeterminado: 100000,
       });
     }
-    setStore(currentStore);
+    setTienda(tiendaActual);
 
-    // 2. Get or Create Demo Customer
-    const customers = await customerRepository.getCustomers(currentStore.id);
-    let activeCustomer = customers[0] ?? null;
+    // 2. Obtener o Crear Cliente Demo
+    const clientes = await clienteRepository.obtenerClientes(tiendaActual.id);
+    let clienteActivo = clientes[0] ?? null;
 
-    if (!activeCustomer) {
-      activeCustomer = await customerRepository.createCustomer(currentStore.id, {
-        name: 'Juan Pérez',
-        documentNumber: '123456789',
-        phone: '3159876543',
-        email: 'juan.perez@email.com',
-        notificationsAuthorized: true,
-        emailVerified: true,
-        customCreditLimit: 120000,
+    if (!clienteActivo) {
+      clienteActivo = await clienteRepository.crearCliente(tiendaActual.id, {
+        nombre: 'Juan Pérez',
+        numeroDocumento: '123456789',
+        telefono: '3159876543',
+        correo: 'juan.perez@email.com',
+        notificacionesAutorizadas: true,
+        correoVerificado: true,
+        limiteCreditoPersonalizado: 120000,
       });
     }
-    setCustomer(activeCustomer);
+    setCliente(clienteActivo);
 
-    // 3. Load Transaction History
-    if (activeCustomer) {
-      const txs = await transactionRepository.getCustomerHistory(activeCustomer.id);
-      setHistory(txs);
+    // 3. Cargar Historial de Movimientos
+    if (clienteActivo) {
+      const txs = await movimientoRepository.obtenerHistorialCliente(clienteActivo.id);
+      setHistorial(txs);
     }
 
-    // 4. Update Sync Summary
-    const summary = await syncEngine.getSummary();
-    setSyncSummary(summary);
+    // 4. Actualizar Resumen de Sincronización
+    const resumen = await motorSincronizacion.obtenerResumen();
+    setResumenSincronizacion(resumen);
   };
 
-  const handleAddFiado = async (amount: number) => {
-    if (!store || !customer) return;
+  const handleAgregarFiado = async (monto: number) => {
+    if (!tienda || !cliente) return;
     try {
-      setLimitWarning(null);
-      const result = await transactionRepository.addFiado(
-        store.id,
-        customer.id,
-        amount,
-        `Compra de víveres ($${amount.toLocaleString()})`
+      setAlertaLimite(null);
+      const resultado = await movimientoRepository.agregarFiado(
+        tienda.id,
+        cliente.id,
+        monto,
+        `Compra de víveres ($${monto.toLocaleString()})`
       );
 
-      if (result.limitExceeded) {
-        setLimitWarning(
-          `⚠️ ¡ALERTA! El nuevo saldo sobrepasa el límite de crédito ($${result.effectiveLimit.toLocaleString()}).`
+      if (resultado.limiteSuperado) {
+        setAlertaLimite(
+          `⚠️ ¡ALERTA! El nuevo saldo sobrepasa el límite de crédito ($${resultado.limiteEfectivo.toLocaleString()}).`
         );
       }
 
-      await loadDemoData();
+      await cargarDatosDemo();
     } catch (err: any) {
       Alert.alert('Error', err.message);
     }
   };
 
-  const handleAddPago = async (amount: number) => {
-    if (!store || !customer) return;
+  const handleAgregarPago = async (monto: number) => {
+    if (!tienda || !cliente) return;
     try {
-      setLimitWarning(null);
-      await transactionRepository.addPago(
-        store.id,
-        customer.id,
-        amount,
-        `Abono a cuenta ($${amount.toLocaleString()})`
+      setAlertaLimite(null);
+      await movimientoRepository.agregarPago(
+        tienda.id,
+        cliente.id,
+        monto,
+        `Abono a cuenta ($${monto.toLocaleString()})`
       );
-      await loadDemoData();
+      await cargarDatosDemo();
     } catch (err: any) {
       Alert.alert('Error', err.message);
     }
@@ -132,56 +132,56 @@ export default function App() {
 
   return (
     <PaperProvider theme={MD3DarkTheme}>
-      <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text variant="headlineMedium" style={styles.title}>
-              {store ? store.name : 'Gestor Digital de Fiados'}
+      <View style={styles.contenedor}>
+        <ScrollView contentContainerStyle={styles.contenidoScroll}>
+          {/* Encabezado */}
+          <View style={styles.encabezado}>
+            <Text variant="headlineMedium" style={styles.titulo}>
+              {tienda ? tienda.nombre : 'Gestor Digital de Fiados'}
             </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              {store ? `Propietario: ${store.ownerName}` : 'Inicializando...'}
+            <Text variant="bodyMedium" style={styles.subtitulo}>
+              {tienda ? `Propietario: ${tienda.nombrePropietario}` : 'Inicializando...'}
             </Text>
           </View>
 
-          {/* Badges */}
-          <View style={styles.badgeRow}>
+          {/* Insignias de Estado */}
+          <View style={styles.filaChips}>
             <Chip
-              icon={syncSummary.isOnline ? 'wifi' : 'wifi-off'}
+              icon={resumenSincronizacion.estaEnLinea ? 'wifi' : 'wifi-off'}
               style={[
                 styles.chip,
-                { backgroundColor: syncSummary.isOnline ? '#1b5e20' : '#b71c1c' },
+                { backgroundColor: resumenSincronizacion.estaEnLinea ? '#1b5e20' : '#b71c1c' },
               ]}
             >
-              {syncSummary.isOnline ? 'Online' : 'Offline'}
+              {resumenSincronizacion.estaEnLinea ? 'En Línea' : 'Sin Internet'}
             </Chip>
 
             <Chip
               icon="database"
               style={[
                 styles.chip,
-                { backgroundColor: dbReady ? '#0d47a1' : '#e65100' },
+                { backgroundColor: bdLista ? '#0d47a1' : '#e65100' },
               ]}
             >
-              {dbReady ? 'SQLite Listo' : 'Iniciando BD'}
+              {bdLista ? 'SQLite Listo' : 'Iniciando BD'}
             </Chip>
 
             <Chip icon="tray-full" style={styles.chip}>
-              Queue: {syncSummary.pendingCount}
+              Cola: {resumenSincronizacion.pendientesCount}
             </Chip>
           </View>
 
-          {/* Customer Debt Card */}
-          {customer && (
-            <Card style={styles.card} mode="elevated">
+          {/* Tarjeta del Cliente */}
+          {cliente && (
+            <Card style={styles.tarjeta} mode="elevated">
               <Card.Content>
-                <View style={styles.customerHeader}>
+                <View style={styles.encabezadoCliente}>
                   <View>
-                    <Text variant="titleMedium" style={styles.cardTitle}>
-                      {customer.name}
+                    <Text variant="titleMedium" style={styles.tituloTarjeta}>
+                      {cliente.nombre}
                     </Text>
                     <Text variant="bodySmall" style={{ color: '#aaa' }}>
-                      Doc: {customer.documentNumber} | Tel: {customer.phone}
+                      Doc: {cliente.numeroDocumento} | Tel: {cliente.telefono}
                     </Text>
                   </View>
                   <Chip icon="shield-check" style={{ backgroundColor: '#2e7d32' }}>
@@ -189,15 +189,15 @@ export default function App() {
                   </Chip>
                 </View>
 
-                <Divider style={styles.divider} />
+                <Divider style={styles.divisor} />
 
-                <View style={styles.balanceRow}>
+                <View style={styles.filaSaldo}>
                   <View>
                     <Text variant="bodySmall" style={{ color: '#aaa' }}>
                       Saldo Deuda Actual:
                     </Text>
                     <Text variant="headlineSmall" style={{ color: '#ef5350', fontWeight: 'bold' }}>
-                      ${customer.currentBalance.toLocaleString()}
+                      ${cliente.saldoActual.toLocaleString()}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
@@ -205,31 +205,31 @@ export default function App() {
                       Límite de Crédito:
                     </Text>
                     <Text variant="titleMedium" style={{ color: '#81c784' }}>
-                      ${(customer.customCreditLimit ?? store?.defaultCreditLimit ?? 100000).toLocaleString()}
+                      ${(cliente.limiteCreditoPersonalizado ?? tienda?.limiteCreditoPredeterminado ?? 100000).toLocaleString()}
                     </Text>
                   </View>
                 </View>
 
-                {limitWarning && (
+                {alertaLimite && (
                   <HelperText type="error" visible={true} style={{ fontSize: 13, marginTop: 8 }}>
-                    {limitWarning}
+                    {alertaLimite}
                   </HelperText>
                 )}
 
-                <Divider style={styles.divider} />
+                <Divider style={styles.divisor} />
 
-                {/* Quick Action Buttons */}
+                {/* Botones de Acción */}
                 <Text variant="labelLarge" style={{ marginBottom: 10, color: '#bb86fc' }}>
                   Acciones Rápidas (Prueba de Transacción Local):
                 </Text>
 
-                <View style={styles.buttonRow}>
+                <View style={styles.filaBotones}>
                   <Button
                     mode="contained"
                     buttonColor="#c62828"
                     icon="plus-circle"
-                    onPress={() => handleAddFiado(50000)}
-                    style={styles.actionBtn}
+                    onPress={() => handleAgregarFiado(50000)}
+                    style={styles.botonAccion}
                   >
                     + Fiado $50.000
                   </Button>
@@ -238,8 +238,8 @@ export default function App() {
                     mode="contained"
                     buttonColor="#2e7d32"
                     icon="minus-circle"
-                    onPress={() => handleAddPago(20000)}
-                    style={styles.actionBtn}
+                    onPress={() => handleAgregarPago(20000)}
+                    style={styles.botonAccion}
                   >
                     - Pago $20.000
                   </Button>
@@ -248,37 +248,37 @@ export default function App() {
             </Card>
           )}
 
-          {/* Chronological History List */}
-          <Card style={styles.card} mode="elevated">
+          {/* Historial Cronológico */}
+          <Card style={styles.tarjeta} mode="elevated">
             <Card.Content>
-              <Text variant="titleMedium" style={styles.cardTitle}>
+              <Text variant="titleMedium" style={styles.tituloTarjeta}>
                 Historial Cronológico de Movimientos
               </Text>
-              <Divider style={styles.divider} />
+              <Divider style={styles.divisor} />
 
-              {history.length === 0 ? (
+              {historial.length === 0 ? (
                 <Text variant="bodyMedium" style={{ color: '#aaa', fontStyle: 'italic' }}>
                   No hay movimientos registrados para este cliente.
                 </Text>
               ) : (
-                history.map((item) => (
+                historial.map((item) => (
                   <List.Item
                     key={item.id}
-                    title={`${item.type === 'FIADO' ? '🛒 Fiado' : item.type === 'PAGO' ? '💵 Pago / Abono' : '⚠️ Anulacion'}: $${item.amount.toLocaleString()}`}
-                    description={`${item.description ?? 'Sin descripción'} | ${new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                    title={`${item.tipo === 'FIADO' ? '🛒 Fiado' : item.tipo === 'PAGO' ? '💵 Pago / Abono' : '⚠️ Anulación'}: $${item.monto.toLocaleString()}`}
+                    description={`${item.descripcion ?? 'Sin descripción'} | ${new Date(item.fechaCreacion).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                     right={() => (
                       <Chip
-                        icon={item.syncStatus === 'SYNCED' ? 'check' : 'clock-outline'}
+                        icon={item.estadoSincronizacion === 'SINCRONIZADO' ? 'check' : 'clock-outline'}
                         style={{
                           height: 30,
-                          backgroundColor: item.syncStatus === 'SYNCED' ? '#1b5e20' : '#424242',
+                          backgroundColor: item.estadoSincronizacion === 'SINCRONIZADO' ? '#1b5e20' : '#424242',
                         }}
                       >
-                        {item.syncStatus}
+                        {item.estadoSincronizacion}
                       </Chip>
                     )}
                     titleStyle={{
-                      color: item.type === 'FIADO' ? '#ef5350' : item.type === 'PAGO' ? '#81c784' : '#ffb74d',
+                      color: item.tipo === 'FIADO' ? '#ef5350' : item.tipo === 'PAGO' ? '#81c784' : '#ffb74d',
                       fontWeight: 'bold',
                     }}
                   />
@@ -293,26 +293,26 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  contenedor: {
     flex: 1,
     backgroundColor: '#121212',
   },
-  scrollContent: {
+  contenidoScroll: {
     padding: 20,
     paddingTop: 50,
   },
-  header: {
+  encabezado: {
     marginBottom: 16,
   },
-  title: {
+  titulo: {
     color: '#bb86fc',
     fontWeight: 'bold',
   },
-  subtitle: {
+  subtitulo: {
     color: '#b0bec5',
     marginTop: 2,
   },
-  badgeRow: {
+  filaChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
@@ -321,34 +321,34 @@ const styles = StyleSheet.create({
   chip: {
     borderRadius: 20,
   },
-  card: {
+  tarjeta: {
     marginBottom: 16,
     backgroundColor: '#1e1e1e',
   },
-  cardTitle: {
+  tituloTarjeta: {
     color: '#ffffff',
     fontWeight: '600',
   },
-  divider: {
+  divisor: {
     marginVertical: 10,
     backgroundColor: '#333',
   },
-  customerHeader: {
+  encabezadoCliente: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  balanceRow: {
+  filaSaldo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: 4,
   },
-  buttonRow: {
+  filaBotones: {
     flexDirection: 'row',
     gap: 10,
   },
-  actionBtn: {
+  botonAccion: {
     flex: 1,
     borderRadius: 8,
   },

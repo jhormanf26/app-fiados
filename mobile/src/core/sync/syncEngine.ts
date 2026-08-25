@@ -1,115 +1,113 @@
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import * as Crypto from 'expo-crypto';
-import { getDatabase } from '../database/db';
-import { SyncQueueItem, SyncStatus, SyncSummary } from '../types/database';
+import { obtenerBaseDatos } from '../database/db';
+import { ItemColaSincronizacion, ResumenSincronizacion, EntidadSincronizacion, AccionSincronizacion } from '../types/database';
 
-type NetworkListener = (isOnline: boolean) => void;
+type EscuchadorRed = (estaEnLinea: boolean) => void;
 
-class SyncEngine {
-  private isOnline: boolean = false;
-  private listeners: Set<NetworkListener> = new Set();
-  private isSyncing: boolean = false;
+class MotorSincronizacion {
+  private estaEnLinea: boolean = false;
+  private escuchadores: Set<EscuchadorRed> = new Set();
+  private estaSincronizando: boolean = false;
 
   constructor() {
-    this.initNetworkListener();
+    this.iniciarEscuchadorRed();
   }
 
-  private initNetworkListener() {
+  private iniciarEscuchadorRed() {
     NetInfo.addEventListener((state: NetInfoState) => {
-      const online = Boolean(state.isConnected && state.isInternetReachable !== false);
-      if (this.isOnline !== online) {
-        this.isOnline = online;
-        this.notifyListeners(online);
-        if (online) {
-          this.triggerSync();
+      const enLinea = Boolean(state.isConnected && state.isInternetReachable !== false);
+      if (this.estaEnLinea !== enLinea) {
+        this.estaEnLinea = enLinea;
+        this.notificarEscuchadores(enLinea);
+        if (enLinea) {
+          this.dispararSincronizacion();
         }
       }
     });
   }
 
-  public subscribe(listener: NetworkListener): () => void {
-    this.listeners.add(listener);
-    listener(this.isOnline);
-    return () => this.listeners.delete(listener);
+  public suscribir(escuchador: EscuchadorRed): () => void {
+    this.escuchadores.add(escuchador);
+    escuchador(this.estaEnLinea);
+    return () => this.escuchadores.delete(escuchador);
   }
 
-  private notifyListeners(isOnline: boolean) {
-    this.listeners.forEach((listener) => listener(isOnline));
+  private notificarEscuchadores(estaEnLinea: boolean) {
+    this.escuchadores.forEach((escuchador) => escuchador(estaEnLinea));
   }
 
   /**
-   * Queue a new mutation into the local sync_queue table
+   * Encola una mutación en la tabla local cola_sincronizacion
    */
-  public async queueItem(
-    entityType: 'STORE' | 'CUSTOMER' | 'TRANSACTION',
-    action: 'CREATE' | 'UPDATE' | 'DELETE',
+  public async encolarItem(
+    tipoEntidad: EntidadSincronizacion,
+    accion: AccionSincronizacion,
     payload: object
   ): Promise<string> {
-    const db = getDatabase();
+    const db = obtenerBaseDatos();
     const id = Crypto.randomUUID();
-    const createdAt = new Date().toISOString();
+    const fechaCreacion = new Date().toISOString();
     const payloadStr = JSON.stringify(payload);
 
     await db.runAsync(
-      `INSERT INTO sync_queue (id, entity_type, action, payload, status, retry_count, created_at)
-       VALUES (?, ?, ?, ?, 'PENDING', 0, ?)`,
-      [id, entityType, action, payloadStr, createdAt]
+      `INSERT INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
+       VALUES (?, ?, ?, ?, 'PENDIENTE', 0, ?)`,
+      [id, tipoEntidad, accion, payloadStr, fechaCreacion]
     );
 
-    // Try syncing immediately if online
-    if (this.isOnline) {
-      this.triggerSync();
+    if (this.estaEnLinea) {
+      this.dispararSincronizacion();
     }
 
     return id;
   }
 
   /**
-   * Trigger the sync engine process (Pushes Outbox queue to Backend API)
+   * Dispara el proceso de sincronización con el backend
    */
-  public async triggerSync(): Promise<void> {
-    if (this.isSyncing || !this.isOnline) {
+  public async dispararSincronizacion(): Promise<void> {
+    if (this.estaSincronizando || !this.estaEnLinea) {
       return;
     }
 
-    this.isSyncing = true;
+    this.estaSincronizando = true;
     try {
-      const db = getDatabase();
-      const pendingItems = await db.getAllAsync<SyncQueueItem>(
-        `SELECT * FROM sync_queue WHERE status = 'PENDING' ORDER BY created_at ASC LIMIT 50`
+      const db = obtenerBaseDatos();
+      const itemsPendientes = await db.getAllAsync<any>(
+        `SELECT id, tipo_entidad as tipoEntidad, accion, payload, estado, numero_reintentos as numeroReintentos, mensaje_error as mensajeError, fecha_creacion as fechaCreacion FROM cola_sincronizacion WHERE estado = 'PENDIENTE' ORDER BY fecha_creacion ASC LIMIT 50`
       );
 
-      if (pendingItems.length === 0) {
-        this.isSyncing = false;
+      if (itemsPendientes.length === 0) {
+        this.estaSincronizando = false;
         return;
       }
 
-      console.log(`[SyncEngine] Found ${pendingItems.length} items to synchronize with server.`);
+      console.log(`[MotorSincronizacion] Se encontraron ${itemsPendientes.length} registros pendientes por sincronizar.`);
 
-      // TODO: Connect with Spring Boot /api/v1/sync endpoint once Backend is active.
-      // For local offline milestone: Items stay queued in PENDING status cleanly.
+      // TODO: Conectar con el endpoint Spring Boot /api/v1/sync en Dokploy cuando el backend esté activo.
 
     } catch (error) {
-      console.error('[SyncEngine] Error processing sync queue:', error);
+      console.error('[MotorSincronizacion] Error al procesar la cola de sincronización:', error);
     } finally {
-      this.isSyncing = false;
+      this.estaSincronizando = false;
     }
   }
 
   /**
-   * Get sync summary status
+   * Obtiene el resumen del estado de sincronización
    */
-  public async getSummary(): Promise<SyncSummary> {
-    const db = getDatabase();
-    const result = await db.getFirstAsync<{ count: number }>(
-      `SELECT COUNT(*) as count FROM sync_queue WHERE status = 'PENDING'`
+  public async obtenerResumen(): Promise<ResumenSincronizacion> {
+    const db = obtenerBaseDatos();
+    const resultado = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM cola_sincronizacion WHERE estado = 'PENDIENTE'`
     );
 
     return {
-      pendingCount: result?.count ?? 0,
-      isOnline: this.isOnline,
+      pendientesCount: resultado?.count ?? 0,
+      estaEnLinea: this.estaEnLinea,
     };
   }
 }
 
-export const syncEngine = new SyncEngine();
+export const motorSincronizacion = new MotorSincronizacion();

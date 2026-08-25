@@ -1,35 +1,35 @@
 import * as SQLite from 'expo-sqlite';
-import { ALL_SCHEMAS } from './schema';
+import { TODOS_LOS_ESQUEMAS } from './schema';
 
-const DB_NAME = 'fiados_local.db';
+const NOMBRE_BD = 'fiados_local_v2.db';
 
-let dbInstance: SQLite.SQLiteDatabase | null = null;
+let instanciaBD: SQLite.SQLiteDatabase | null = null;
 
 /**
- * Obtain or initialize the local SQLite database instance.
+ * Obtiene o inicializa la instancia singleton de SQLite local
  */
-export function getDatabase(): SQLite.SQLiteDatabase {
-  if (!dbInstance) {
-    dbInstance = SQLite.openDatabaseSync(DB_NAME);
+export function obtenerBaseDatos(): SQLite.SQLiteDatabase {
+  if (!instanciaBD) {
+    instanciaBD = SQLite.openDatabaseSync(NOMBRE_BD);
   }
-  return dbInstance;
+  return instanciaBD;
 }
 
 /**
- * Initialize local database tables and migrations
+ * Inicializa las tablas locales y esquemas en español
  */
-export async function initDatabase(): Promise<boolean> {
+export async function inicializarBaseDatos(): Promise<boolean> {
   try {
-    const db = getDatabase();
+    const db = obtenerBaseDatos();
     await db.withTransactionAsync(async () => {
-      for (const schema of ALL_SCHEMAS) {
-        await db.execAsync(schema);
+      for (const esquema of TODOS_LOS_ESQUEMAS) {
+        await db.execAsync(esquema);
       }
     });
-    console.log('[SQLite] Local database initialized successfully.');
+    console.log('[SQLite] Base de datos local inicializada exitosamente en español.');
     return true;
   } catch (error) {
-    console.error('[SQLite] Error initializing database:', error);
+    console.error('[SQLite] Error al inicializar la base de datos:', error);
     return false;
   }
 }

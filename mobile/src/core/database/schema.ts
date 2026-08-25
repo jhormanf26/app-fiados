@@ -1,77 +1,77 @@
 /**
- * SQLite Database Schema Statements (expo-sqlite)
+ * Esquema de Base de Datos SQLite en Español (expo-sqlite)
  */
 
-export const CREATE_STORES_TABLE = `
-  CREATE TABLE IF NOT EXISTS stores (
+export const TABLA_TIENDAS = `
+  CREATE TABLE IF NOT EXISTS tiendas (
     id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    owner_name TEXT NOT NULL,
-    owner_document TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    email TEXT NOT NULL,
-    address TEXT,
-    city TEXT,
-    default_credit_limit REAL DEFAULT 100000.0,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    last_synced_at TEXT
+    nombre TEXT NOT NULL,
+    nombre_propietario TEXT NOT NULL,
+    documento_propietario TEXT NOT NULL,
+    telefono TEXT NOT NULL,
+    correo TEXT NOT NULL,
+    direccion TEXT,
+    ciudad TEXT,
+    limite_credito_predeterminado REAL DEFAULT 100000.0,
+    fecha_creacion TEXT NOT NULL,
+    fecha_actualizacion TEXT NOT NULL,
+    ultima_sincronizacion TEXT
   );
 `;
 
-export const CREATE_CUSTOMERS_TABLE = `
-  CREATE TABLE IF NOT EXISTS customers (
+export const TABLA_CLIENTES = `
+  CREATE TABLE IF NOT EXISTS clientes (
     id TEXT PRIMARY KEY NOT NULL,
-    store_id TEXT NOT NULL,
-    document_number TEXT NOT NULL,
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    email TEXT,
-    notifications_authorized INTEGER DEFAULT 0,
-    email_verified INTEGER DEFAULT 0,
-    custom_credit_limit REAL,
-    current_balance REAL DEFAULT 0.0,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY(store_id) REFERENCES stores(id)
+    tienda_id TEXT NOT NULL,
+    numero_documento TEXT NOT NULL,
+    nombre TEXT NOT NULL,
+    telefono TEXT NOT NULL,
+    correo TEXT,
+    notificaciones_autorizadas INTEGER DEFAULT 0,
+    correo_verificado INTEGER DEFAULT 0,
+    limite_credito_personalizado REAL,
+    saldo_actual REAL DEFAULT 0.0,
+    fecha_creacion TEXT NOT NULL,
+    fecha_actualizacion TEXT NOT NULL,
+    FOREIGN KEY(tienda_id) REFERENCES tiendas(id)
   );
 `;
 
-export const CREATE_TRANSACTIONS_TABLE = `
-  CREATE TABLE IF NOT EXISTS transactions (
+export const TABLA_MOVIMIENTOS = `
+  CREATE TABLE IF NOT EXISTS movimientos (
     id TEXT PRIMARY KEY NOT NULL,
-    store_id TEXT NOT NULL,
-    customer_id TEXT NOT NULL,
-    type TEXT NOT NULL,
-    amount REAL NOT NULL,
-    description TEXT,
-    previous_balance REAL NOT NULL,
-    new_balance REAL NOT NULL,
-    reason_for_annulment TEXT,
-    sync_status TEXT NOT NULL DEFAULT 'PENDING',
-    created_at TEXT NOT NULL,
-    synced_at TEXT,
-    FOREIGN KEY(store_id) REFERENCES stores(id),
-    FOREIGN KEY(customer_id) REFERENCES customers(id)
+    tienda_id TEXT NOT NULL,
+    cliente_id TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    monto REAL NOT NULL,
+    descripcion TEXT,
+    saldo_anterior REAL NOT NULL,
+    nuevo_saldo REAL NOT NULL,
+    motivo_anulacion TEXT,
+    estado_sincronizacion TEXT NOT NULL DEFAULT 'PENDIENTE',
+    fecha_creacion TEXT NOT NULL,
+    fecha_sincronizacion TEXT,
+    FOREIGN KEY(tienda_id) REFERENCES tiendas(id),
+    FOREIGN KEY(cliente_id) REFERENCES clientes(id)
   );
 `;
 
-export const CREATE_SYNC_QUEUE_TABLE = `
-  CREATE TABLE IF NOT EXISTS sync_queue (
+export const TABLA_COLA_SINCRONIZACION = `
+  CREATE TABLE IF NOT EXISTS cola_sincronizacion (
     id TEXT PRIMARY KEY NOT NULL,
-    entity_type TEXT NOT NULL,
-    action TEXT NOT NULL,
+    tipo_entidad TEXT NOT NULL,
+    accion TEXT NOT NULL,
     payload TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'PENDING',
-    retry_count INTEGER DEFAULT 0,
-    error_message TEXT,
-    created_at TEXT NOT NULL
+    estado TEXT NOT NULL DEFAULT 'PENDIENTE',
+    numero_reintentos INTEGER DEFAULT 0,
+    mensaje_error TEXT,
+    fecha_creacion TEXT NOT NULL
   );
 `;
 
-export const ALL_SCHEMAS = [
-  CREATE_STORES_TABLE,
-  CREATE_CUSTOMERS_TABLE,
-  CREATE_TRANSACTIONS_TABLE,
-  CREATE_SYNC_QUEUE_TABLE
+export const TODOS_LOS_ESQUEMAS = [
+  TABLA_TIENDAS,
+  TABLA_CLIENTES,
+  TABLA_MOVIMIENTOS,
+  TABLA_COLA_SINCRONIZACION
 ];

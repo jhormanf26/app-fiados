@@ -1,69 +1,71 @@
 /**
- * Core Data Models for Gestor Digital de Fiados
- * Offline-First TypeScript Interfaces
+ * Modelos de Datos en Español para el Gestor Digital de Fiados
+ * Interfaces TypeScript para la arquitectura Offline-First
  */
 
-export type TransactionType = 'FIADO' | 'PAGO' | 'AJUSTE' | 'ANULACION';
-export type SyncStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED';
+export type TipoMovimiento = 'FIADO' | 'PAGO' | 'AJUSTE' | 'ANULACION';
+export type EstadoSincronizacion = 'PENDIENTE' | 'ENVIANDO' | 'SINCRONIZADO' | 'FALLIDO';
+export type EntidadSincronizacion = 'TIENDA' | 'CLIENTE' | 'MOVIMIENTO';
+export type AccionSincronizacion = 'CREAR' | 'ACTUALIZAR' | 'ELIMINAR';
 
-export interface Store {
+export interface Tienda {
   id: string; // UUID v4
-  name: string;
-  ownerName: string;
-  ownerDocument: string;
-  phone: string;
-  email: string;
-  address?: string;
-  city?: string;
-  defaultCreditLimit: number;
-  createdAt: string;
-  updatedAt: string;
-  lastSyncedAt?: string;
+  nombre: string;
+  nombrePropietario: string;
+  documentoPropietario: string;
+  telefono: string;
+  correo: string;
+  direccion?: string;
+  ciudad?: string;
+  limiteCreditoPredeterminado: number;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+  ultimaSincronizacion?: string;
 }
 
-export interface Customer {
+export interface Cliente {
   id: string; // UUID v4
-  storeId: string;
-  documentNumber: string;
-  name: string;
-  phone: string;
-  email?: string;
-  notificationsAuthorized: boolean;
-  emailVerified: boolean;
-  customCreditLimit?: number; // Overrides store default if set
-  currentBalance: number;     // Recalculated locally upon transactions
-  createdAt: string;
-  updatedAt: string;
+  tiendaId: string;
+  numeroDocumento: string;
+  nombre: string;
+  telefono: string;
+  correo?: string;
+  notificacionesAutorizadas: boolean;
+  correoVerificado: boolean;
+  limiteCreditoPersonalizado?: number;
+  saldoActual: number; // Calculado localmente con cada movimiento
+  fechaCreacion: string;
+  fechaActualizacion: string;
 }
 
-export interface Transaction {
-  id: string; // UUID v4 generated locally
-  storeId: string;
-  customerId: string;
-  type: TransactionType;
-  amount: number;             // Positive for FIADO, Positive for PAGO (handled in math)
-  description?: string;
-  previousBalance: number;
-  newBalance: number;
-  reasonForAnnulment?: string;
-  syncStatus: SyncStatus;
-  createdAt: string;          // ISO timestamp
-  syncedAt?: string;
+export interface Movimiento {
+  id: string; // UUID v4 generado localmente
+  tiendaId: string;
+  clienteId: string;
+  tipo: TipoMovimiento;
+  monto: number;
+  descripcion?: string;
+  saldoAnterior: number;
+  nuevoSaldo: number;
+  motivoAnulacion?: string;
+  estadoSincronizacion: EstadoSincronizacion;
+  fechaCreacion: string; // Formato ISO
+  fechaSincronizacion?: string;
 }
 
-export interface SyncQueueItem {
+export interface ItemColaSincronizacion {
   id: string; // UUID v4
-  entityType: 'STORE' | 'CUSTOMER' | 'TRANSACTION';
-  action: 'CREATE' | 'UPDATE' | 'DELETE';
-  payload: string; // JSON Stringified entity
-  status: SyncStatus;
-  retryCount: number;
-  errorMessage?: string;
-  createdAt: string;
+  tipoEntidad: EntidadSincronizacion;
+  accion: AccionSincronizacion;
+  payload: string; // JSON stringificado de la entidad
+  estado: EstadoSincronizacion;
+  numeroReintentos: number;
+  mensajeError?: string;
+  fechaCreacion: string;
 }
 
-export interface SyncSummary {
-  pendingCount: number;
-  lastSyncedAt?: string;
-  isOnline: boolean;
+export interface ResumenSincronizacion {
+  pendientesCount: number;
+  ultimaSincronizacion?: string;
+  estaEnLinea: boolean;
 }
