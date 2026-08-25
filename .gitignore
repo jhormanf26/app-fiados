@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+.expo/
+dist/
+web-build/
+
+# IDE / OS
+.DS_Store
+*.pem
+Thumbs.db
+.vscode/
+
+# Build outputs
+*.apk
+*.aab
+*.ipa
+
+# Environment
+.env*
