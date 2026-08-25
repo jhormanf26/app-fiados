@@ -225,6 +225,21 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
       return resultado as unknown as T[];
     }
 
+    if (cleanSql.includes('FROM MOVIMIENTOS') && cleanSql.includes('JOIN CLIENTES')) {
+      const tiendaId = params[0];
+      const resultado = this.tablas.movimientos
+        .filter((m) => (m.tienda_id === tiendaId || !m.tienda_id))
+        .slice(0, 5)
+        .map((m) => {
+          const cli = this.tablas.clientes.find((c) => c.id === m.cliente_id);
+          return {
+            ...m,
+            nombre_cliente: cli ? cli.nombre : 'Cliente',
+          };
+        });
+      return resultado as unknown as T[];
+    }
+
     if (cleanSql.includes('FROM MOVIMIENTOS')) {
       const clienteId = params[0];
       const resultado = this.tablas.movimientos.filter((m) => m.cliente_id === clienteId);

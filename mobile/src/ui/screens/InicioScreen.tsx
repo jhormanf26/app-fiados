@@ -1,15 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, RefreshControl } from 'react-native';
+import { StyleSheet, View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Text, Card, Button, Divider, Chip, ActivityIndicator, IconButton, ProgressBar } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { clienteRepository } from '../../core/repositories/clienteRepository';
-import { movimientoRepository } from '../../core/repositories/movimientoRepository';
+import { movimientoRepository, MovimientoConCliente } from '../../core/repositories/movimientoRepository';
 import { motorSincronizacion } from '../../core/sync/syncEngine';
 import { Tienda, ResumenSincronizacion } from '../../core/types/database';
 import { APP_VERSION } from '../../core/constants/version';
 import { NuevoMovimientoModal } from '../modals/NuevoMovimientoModal';
 import { useAppTheme } from '../theme/ThemeContext';
+
+function formatearTiempoHace(isoString: string): string {
+  try {
+    const fecha = new Date(isoString);
+    const ahora = new Date();
+    const difMs = ahora.getTime() - fecha.getTime();
+    const difMin = Math.floor(difMs / (1000 * 60));
+    const difHoras = Math.floor(difMs / (1000 * 60 * 60));
+    const difDias = Math.floor(difMs / (1000 * 60 * 60 * 24));
+
+    if (difMin < 1) return 'Hace un momento';
+    if (difMin < 60) return `Hace ${difMin} min`;
+    if (difHoras < 24) return `Hace ${difHoras} hr${difHoras > 1 ? 's' : ''}`;
+    if (difDias === 1) return 'Ayer';
+    return `Hace ${difDias} días`;
+  } catch (e) {
+    return 'Reciente';
+  }
+}
 
 export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { isDarkMode, colors } = useAppTheme();
@@ -19,6 +38,7 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [totalRecuperado, setTotalRecuperado] = useState<number>(0);
   const [conteoDeudores, setConteoDeudores] = useState<number>(0);
   const [totalClientes, setTotalClientes] = useState<number>(0);
+  const [movimientosDelDia, setMovimientosDelDia] = useState<MovimientoConCliente[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
   const [refrescando, setRefrescando] = useState<boolean>(false);
   const [modalMovimientoVisible, setModalMovimientoVisible] = useState<boolean>(false);
@@ -56,6 +76,10 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const cartera = await movimientoRepository.obtenerResumenCartera(t.id);
       setTotalFiado(cartera.totalFiado);
       setTotalRecuperado(cartera.totalRecuperado);
+
+      // Cargar Movimientos del Día para el gráfico / lista reciente Stitch
+      const recientes = await movimientoRepository.obtenerMovimientosDelDia(t.id);
+      setMovimientosDelDia(recientes);
 
       const resSync = await motorSincronizacion.obtenerResumen();
       setSincronizacion(resSync);
@@ -238,6 +262,88 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Card.Content>
         </Card>
 
+        {/* Tarjeta MOVIMIENTOS DEL DÍA (NUEVO STITCH MOCKUP) */}
+        <Card style={[styles.cardTotal, { backgroundColor: colors.card, borderColor: colors.border }]} mode="outlined">
+          <Card.Content style={{ paddingVertical: 18, paddingHorizontal: 16 }}>
+            <Text variant="labelLarge" style={{ color: colors.textSecondary, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12 }}>
+              MOVIMIENTOS DEL DÍA
+            </Text>
+
+            {movimientosDelDia.length === 0 ? (
+              <Text variant="bodyMedium" style={{ color: colors.textSecondary, fontStyle: 'italic', marginVertical: 6 }}>
+                No hay movimientos registrados hoy aún.
+              </Text>
+            ) : (
+              movimientosDelDia.map((mov, index) => {
+                const esFiado = mov.tipo === 'FIADO';
+                const esPago = mov.tipo === 'PAGO';
+                const tiempoHace = formatearTiempoHace(mov.fechaCreacion);
+
+                return (
+                  <React.Fragment key={mov.id}>
+                    {index > 0 && <Divider style={{ marginVertical: 10, backgroundColor: isDarkMode ? '#2c2c2c' : '#f0f0f0' }} />}
+
+                    <View style={styles.movimientoDiaRow}>
+                      {/* Icon Box */}
+                      <View
+                        style={[
+                          styles.iconBoxDia,
+                          { backgroundColor: esFiado ? '#fde8e8' : esPago ? '#e8f5e9' : '#fff3e0' },
+                        ]}
+                      >
+                        <Text style={{ fontSize: 18 }}>{esFiado ? '🛒' : esPago ? '💵' : '⚠️'}</Text>
+                      </View>
+
+                      {/* Nombre Cliente + Tiempo */}
+                      <View style={{ flex: 1 }}>
+                        <Text variant="titleSmall" style={{ color: colors.text, fontWeight: 'bold' }}>
+                          {mov.nombreCliente}
+                        </Text>
+                        <Text variant="bodySmall" style={{ color: colors.textSecondary, marginTop: 2 }}>
+                          {tiempoHace}
+                        </Text>
+                      </View>
+
+                      {/* Monto + Badge Sincronización */}
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text
+                          variant="titleSmall"
+                          style={{
+                            color: esFiado ? '#ef5350' : esPago ? '#2e7d32' : '#ffb74d',
+                            fontWeight: 'bold',
+                            fontSize: 15,
+                          }}
+                        >
+                          {esFiado ? `-$${(mov.monto ?? 0).toLocaleString()}` : `+$${(mov.monto ?? 0).toLocaleString()}`}
+                        </Text>
+
+                        <View
+                          style={[
+                            styles.syncPillDia,
+                            {
+                              backgroundColor: mov.estadoSincronizacion === 'SINCRONIZADO' ? '#e8f5e9' : '#fde8e8',
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: mov.estadoSincronizacion === 'SINCRONIZADO' ? '#2e7d32' : '#c62828',
+                              fontSize: 10,
+                              fontWeight: 'bold',
+                            }}
+                          >
+                            {mov.estadoSincronizacion === 'SINCRONIZADO' ? 'Sincronizado' : 'Pendiente'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </React.Fragment>
+                );
+              })
+            )}
+          </Card.Content>
+        </Card>
+
         {/* Botones de Acción Lado a Lado */}
         <View style={styles.btnRow}>
           <Button
@@ -362,6 +468,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  movimientoDiaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  iconBoxDia: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  syncPillDia: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 4,
   },
   btnRow: {
     flexDirection: 'row',

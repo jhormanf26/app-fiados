@@ -10,6 +10,10 @@ export interface ResultadoFiado {
   limiteEfectivo: number;
 }
 
+export interface MovimientoConCliente extends Movimiento {
+  nombreCliente: string;
+}
+
 export class MovimientoRepository {
   /**
    * Registra un nuevo Fiado (Incremento de deuda)
@@ -253,6 +257,33 @@ export class MovimientoRepository {
       totalFiado: totalFiadoCalculado,
       totalRecuperado: pagoMovimientos,
     };
+  }
+
+  /**
+   * Obtiene los últimos 5 movimientos del día con el nombre del cliente
+   */
+  public async obtenerMovimientosDelDia(tiendaId: string): Promise<MovimientoConCliente[]> {
+    const db = obtenerBaseDatos();
+    const rows = await db.getAllAsync<any>(
+      `SELECT m.*, c.nombre as nombre_cliente FROM movimientos m LEFT JOIN clientes c ON m.cliente_id = c.id WHERE m.tienda_id = ? ORDER BY m.fecha_creacion DESC LIMIT 5`,
+      [tiendaId]
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      tiendaId: row.tienda_id,
+      clienteId: row.cliente_id,
+      tipo: row.tipo as TipoMovimiento,
+      monto: Number(row.monto) || 0,
+      descripcion: row.descripcion ?? undefined,
+      saldoAnterior: Number(row.saldo_anterior) || 0,
+      nuevoSaldo: Number(row.nuevo_saldo) || 0,
+      motivoAnulacion: row.motivo_anulacion ?? undefined,
+      estadoSincronizacion: row.estado_sincronizacion || 'PENDIENTE',
+      fechaCreacion: row.fecha_creacion || new Date().toISOString(),
+      fechaSincronizacion: row.fecha_sincronizacion ?? undefined,
+      nombreCliente: row.nombre_cliente || 'Cliente',
+    }));
   }
 }
 
