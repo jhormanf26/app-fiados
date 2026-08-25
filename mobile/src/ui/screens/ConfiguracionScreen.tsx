@@ -5,9 +5,11 @@ import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { Tienda } from '../../core/types/database';
 import { APP_VERSION, APP_BUILD_DATE } from '../../core/constants/version';
 import { useAppTheme } from '../theme/ThemeContext';
+import { useAuth } from '../auth/AuthContext';
 
 export const ConfiguracionScreen: React.FC = () => {
   const { isDarkMode, toggleTheme, colors } = useAppTheme();
+  const { logout } = useAuth();
   const [tienda, setTienda] = useState<Tienda | null>(null);
   const [nombre, setNombre] = useState('');
   const [nombrePropietario, setNombrePropietario] = useState('');
@@ -287,10 +289,21 @@ export const ConfiguracionScreen: React.FC = () => {
           Guardar Cambios
         </Button>
 
+        {/* Botón Cerrar Sesión */}
+        <Button
+          mode="outlined"
+          textColor="#d32f2f"
+          icon="logout"
+          onPress={logout}
+          style={{ borderRadius: 12, borderColor: '#d32f2f', marginBottom: 16 }}
+        >
+          Cerrar Sesión
+        </Button>
+
         {/* Footer Version Stitch */}
         <View style={styles.footerVersion}>
           <Text variant="bodySmall" style={{ color: colors.textSecondary, textAlign: 'center' }}>
-            Version v{APP_VERSION} • Build {APP_BUILD_DATE.replace(/[- :]/g, '').substring(0, 8)}
+            LedgerPro v{APP_VERSION} • Build {APP_BUILD_DATE.replace(/[- :]/g, '').substring(0, 8)}
           </Text>
         </View>
       </ScrollView>

@@ -2,18 +2,22 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Icon, Text } from 'react-native-paper';
+import { Icon, Text, ActivityIndicator } from 'react-native-paper';
 import { InicioScreen } from '../screens/InicioScreen';
 import { ClientesScreen } from '../screens/ClientesScreen';
 import { DetalleClienteScreen } from '../screens/DetalleClienteScreen';
 import { ConfiguracionScreen } from '../screens/ConfiguracionScreen';
+import { LoginScreen } from '../screens/LoginScreen';
+import { RegistroTiendaScreen } from '../screens/RegistroTiendaScreen';
+import { ConsultaClienteScreen } from '../screens/ConsultaClienteScreen';
 import { useAppTheme } from '../theme/ThemeContext';
+import { useAuth } from '../auth/AuthContext';
 
 const Tab = createBottomTabNavigator();
-const ClientesStack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator();
 
 function CustomStitchTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const { colors, isDarkMode } = useAppTheme();
+  const { isDarkMode } = useAppTheme();
 
   return (
     <View
@@ -84,28 +88,28 @@ function ClientesStackScreen() {
   const { isDarkMode } = useAppTheme();
 
   return (
-    <ClientesStack.Navigator
+    <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff' },
         headerTintColor: isDarkMode ? '#ffffff' : '#1c1b1f',
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
-      <ClientesStack.Screen
+      <Stack.Screen
         name="ClientesLista"
         component={ClientesScreen}
         options={{ headerShown: false }}
       />
-      <ClientesStack.Screen
+      <Stack.Screen
         name="DetalleCliente"
         component={DetalleClienteScreen}
         options={{ headerShown: false }}
       />
-    </ClientesStack.Navigator>
+    </Stack.Navigator>
   );
 }
 
-export function AppNavigator() {
+function MainAppTabs() {
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomStitchTabBar {...props} />}
@@ -120,7 +124,39 @@ export function AppNavigator() {
   );
 }
 
+export function AppNavigator() {
+  const { isLoggedIn, cargandoSesion } = useAuth();
+  const { colors } = useAppTheme();
+
+  if (cargandoSesion) {
+    return (
+      <View style={[styles.loadingCenter, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {!isLoggedIn ? (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="RegistroTienda" component={RegistroTiendaScreen} />
+          <Stack.Screen name="ConsultaCliente" component={ConsultaClienteScreen} />
+        </>
+      ) : (
+        <Stack.Screen name="MainApp" component={MainAppTabs} />
+      )}
+    </Stack.Navigator>
+  );
+}
+
 const styles = StyleSheet.create({
+  loadingCenter: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   tabContainer: {
     flexDirection: 'row',
     height: 65,
@@ -149,7 +185,6 @@ const styles = StyleSheet.create({
   },
   inactiveCol: {
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 2,
   },
   inactiveLabel: {

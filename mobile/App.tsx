@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { inicializarBaseDatos } from './src/core/database/db';
 import { AppNavigator } from './src/ui/navigation/AppNavigator';
 import { ThemeProvider, useAppTheme } from './src/ui/theme/ThemeContext';
+import { AuthProvider } from './src/ui/auth/AuthContext';
 
 function AppContent() {
   const { paperTheme, navTheme, colors } = useAppTheme();
@@ -31,9 +32,11 @@ function AppContent() {
 
   return (
     <PaperProvider theme={paperTheme}>
-      <NavigationContainer theme={navTheme}>
-        <AppNavigator />
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer theme={navTheme}>
+          <AppNavigator />
+        </NavigationContainer>
+      </AuthProvider>
     </PaperProvider>
   );
 }
