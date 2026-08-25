@@ -214,6 +214,19 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
       return (cliente ?? null) as unknown as T | null;
     }
 
+    if (cleanSql.includes('SUM(MONTO) AS TOTAL FROM MOVIMIENTOS')) {
+      const tiendaId = params[0];
+      const esFiado = cleanSql.includes("TIPO = 'FIADO'");
+      const esPago = cleanSql.includes("TIPO = 'PAGO'");
+      const tipoBuscado = esFiado ? 'FIADO' : esPago ? 'PAGO' : null;
+
+      const items = this.tablas.movimientos.filter(
+        (m) => (m.tienda_id === tiendaId || !m.tienda_id) && (!tipoBuscado || m.tipo === tipoBuscado)
+      );
+      const total = items.reduce((sum, m) => sum + (Number(m.monto) || 0), 0);
+      return { total } as unknown as T;
+    }
+
     if (cleanSql.includes('FROM MOVIMIENTOS')) {
       const movId = params[0];
       const mov = this.tablas.movimientos.find((m) => m.id === movId);

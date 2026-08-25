@@ -240,9 +240,18 @@ export class MovimientoRepository {
       `SELECT SUM(monto) as total FROM movimientos WHERE tienda_id = ? AND tipo = 'PAGO'`,
       [tiendaId]
     );
+
+    const clientes = await clienteRepository.obtenerClientes(tiendaId);
+    const sumaSaldosActuales = clientes.reduce((acc, c) => acc + (c.saldoActual || 0), 0);
+
+    const fiadoMovimientos = resFiado?.total ?? 0;
+    const pagoMovimientos = resPago?.total ?? 0;
+
+    const totalFiadoCalculado = Math.max(fiadoMovimientos, pagoMovimientos + sumaSaldosActuales);
+
     return {
-      totalFiado: resFiado?.total ?? 0,
-      totalRecuperado: resPago?.total ?? 0,
+      totalFiado: totalFiadoCalculado,
+      totalRecuperado: pagoMovimientos,
     };
   }
 }
