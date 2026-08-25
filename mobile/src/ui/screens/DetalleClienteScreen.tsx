@@ -18,6 +18,28 @@ function obtenerIniciales(nombre: string): string {
   return partes[0].substring(0, 2).toUpperCase();
 }
 
+function formatearFechaRelativa(isoString: string): string {
+  try {
+    const fecha = new Date(isoString);
+    const ahora = new Date();
+    const difMs = ahora.getTime() - fecha.getTime();
+    const difDias = Math.floor(difMs / (1000 * 60 * 60 * 24));
+
+    const horaStr = fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (difDias === 0) {
+      return `Hoy, ${horaStr}`;
+    } else if (difDias === 1) {
+      return `Ayer`;
+    } else if (difDias > 1 && difDias < 7) {
+      return `Hace ${difDias} días`;
+    }
+    return `${fecha.toLocaleDateString()} ${horaStr}`;
+  } catch (e) {
+    return isoString;
+  }
+}
+
 export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const { isDarkMode, colors } = useAppTheme();
   const { clienteId } = route.params;
@@ -59,7 +81,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
 
     Alert.prompt(
       'Anular Movimiento',
-      `¿Estás seguro de anular este movimiento de $${movimiento.monto.toLocaleString()}? Escribe el motivo de la anulación:`,
+      `¿Estás seguro de anular este movimiento de $${(movimiento.monto ?? 0).toLocaleString()}? Escribe el motivo de la anulación:`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -220,7 +242,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
           Registrar Fiado o Pago
         </Button>
 
-        {/* Sección Historial de Transacciones */}
+        {/* Encabezado Sección Historial de Transacciones Stitch */}
         <View style={styles.historialHeader}>
           <Text variant="titleMedium" style={{ color: colors.text, fontWeight: 'bold' }}>
             Historial de Transacciones
@@ -230,84 +252,113 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
           </Text>
         </View>
 
+        {/* Contenedor Unificado Estilo Stitch para Historial de Transacciones */}
         {historial.length === 0 ? (
           <Text variant="bodyMedium" style={{ color: colors.textSecondary, fontStyle: 'italic', marginVertical: 10 }}>
             Este cliente no tiene movimientos registrados.
           </Text>
         ) : (
-          historial.map((item) => {
-            const esFiado = item.tipo === 'FIADO';
-            const esPago = item.tipo === 'PAGO';
+          <Card
+            style={[
+              styles.cardHistorialGroup,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            mode="outlined"
+          >
+            <Card.Content style={{ paddingHorizontal: 0, paddingVertical: 4 }}>
+              {historial.map((item, index) => {
+                const esFiado = item.tipo === 'FIADO';
+                const esPago = item.tipo === 'PAGO';
+                const esAnulacion = item.tipo === 'ANULACION';
+                const fechaTexto = formatearFechaRelativa(item.fechaCreacion);
 
-            return (
-              <Card
-                key={item.id}
-                style={[
-                  styles.cardMovimiento,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-                mode="outlined"
-              >
-                <Card.Content style={styles.movimientoContent}>
-                  {/* Icon Box (Rojo para Fiado, Verde para Pago) */}
-                  <View
-                    style={[
-                      styles.iconBox,
-                      { backgroundColor: esFiado ? '#fde8e8' : esPago ? '#e8f5e9' : '#fff3e0' },
-                    ]}
-                  >
-                    <Text style={{ fontSize: 20 }}>{esFiado ? '🛒' : esPago ? '💵' : '⚠️'}</Text>
-                  </View>
+                return (
+                  <React.Fragment key={item.id}>
+                    {index > 0 && <Divider style={{ backgroundColor: isDarkMode ? '#2c2c2c' : '#f0f0f0' }} />}
 
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text variant="titleSmall" style={{ color: colors.text, fontWeight: 'bold' }}>
-                        {esFiado ? 'Fiado' : esPago ? 'Pago / Abono' : 'Anulación'}: {item.descripcion || 'General'}
-                      </Text>
-                      <Text
-                        variant="titleSmall"
-                        style={{
-                          color: esFiado ? '#ef5350' : esPago ? '#2e7d32' : '#ffb74d',
-                          fontWeight: 'bold',
-                        }}
+                    <View style={styles.movimientoRowStitch}>
+                      {/* Caja de Icono Suave */}
+                      <View
+                        style={[
+                          styles.iconBoxStitch,
+                          {
+                            backgroundColor: esFiado
+                              ? '#fde8e8'
+                              : esPago
+                              ? '#e8f5e9'
+                              : '#fff3e0',
+                          },
+                        ]}
                       >
-                        ${(item.monto ?? 0).toLocaleString()}
-                      </Text>
+                        <Text style={{ fontSize: 20 }}>{esFiado ? '🛒' : esPago ? '💵' : '⚠️'}</Text>
+                      </View>
+
+                      {/* Información Principal del Movimiento */}
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text
+                            variant="titleSmall"
+                            numberOfLines={1}
+                            style={{ color: colors.text, fontWeight: 'bold', flex: 1, marginRight: 8 }}
+                          >
+                            {esFiado ? 'Fiado: ' : esPago ? 'Pago: ' : 'Anulado: '}
+                            {item.descripcion || (esFiado ? 'Compra general' : esPago ? 'Abono a deuda' : 'Anulación')}
+                          </Text>
+
+                          <Text
+                            variant="titleSmall"
+                            style={{
+                              color: esFiado ? '#ef5350' : esPago ? '#2e7d32' : '#ffb74d',
+                              fontWeight: 'bold',
+                              fontSize: 15,
+                            }}
+                          >
+                            ${(item.monto ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                          <Text variant="bodySmall" style={{ color: colors.textSecondary, fontSize: 12 }}>
+                            {fechaTexto}
+                          </Text>
+
+                          <View
+                            style={[
+                              styles.chipSyncStitch,
+                              {
+                                backgroundColor: item.estadoSincronizacion === 'SINCRONIZADO' ? '#e8f5e9' : '#eeeeee',
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                color: item.estadoSincronizacion === 'SINCRONIZADO' ? '#2e7d32' : '#666666',
+                                fontSize: 10,
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              {item.estadoSincronizacion}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Botón Anular / Eliminar */}
+                      {!esAnulacion && (
+                        <IconButton
+                          icon="delete-outline"
+                          iconColor={isDarkMode ? '#ff8a80' : '#d32f2f'}
+                          size={20}
+                          onPress={() => handleAnular(item)}
+                          style={{ margin: 0 }}
+                        />
+                      )}
                     </View>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                      <Text variant="bodySmall" style={{ color: colors.textSecondary }}>
-                        {new Date(item.fechaCreacion).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-
-                      <Chip
-                        style={{
-                          height: 22,
-                          backgroundColor: item.estadoSincronizacion === 'SINCRONIZADO' ? '#e8f5e9' : '#eeeeee',
-                        }}
-                        textStyle={{
-                          color: item.estadoSincronizacion === 'SINCRONIZADO' ? '#2e7d32' : '#666666',
-                          fontSize: 10,
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {item.estadoSincronizacion}
-                      </Chip>
-                    </View>
-                  </View>
-
-                  {item.tipo !== 'ANULACION' && (
-                    <IconButton
-                      icon="delete-outline"
-                      iconColor="#ef5350"
-                      size={20}
-                      onPress={() => handleAnular(item)}
-                    />
-                  )}
-                </Card.Content>
-              </Card>
-            );
-          })
+                  </React.Fragment>
+                );
+              })}
+            </Card.Content>
+          </Card>
         )}
       </ScrollView>
 
@@ -426,21 +477,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  cardMovimiento: {
-    borderRadius: 14,
-    marginBottom: 10,
+  cardHistorialGroup: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  movimientoContent: {
+  movimientoRowStitch: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  iconBox: {
+  iconBoxStitch: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  chipSyncStitch: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
 });
