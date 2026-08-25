@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ScrollView, Alert } from 'react-native';
-import { Text, Card, TextInput, Button, HelperText, ActivityIndicator, Divider, Switch } from 'react-native-paper';
+import { Text, Card, TextInput, Button, HelperText, ActivityIndicator, Divider, Switch, IconButton, Chip } from 'react-native-paper';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { Tienda } from '../../core/types/database';
 import { APP_VERSION, APP_BUILD_DATE } from '../../core/constants/version';
@@ -83,25 +83,43 @@ export const ConfiguracionScreen: React.FC = () => {
 
   if (cargando) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#bb86fc" />
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text variant="headlineSmall" style={styles.titulo}>
-          ⚙️ Ajustes de la Tienda
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Encabezado Superior Stitch con Synced Badge */}
+      <View style={[styles.topHeaderBar, { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }]}>
+        <IconButton
+          icon="sync"
+          iconColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+          size={22}
+          onPress={cargarTienda}
+        />
+        <Text variant="titleMedium" style={styles.storeNameHeader}>
+          {nombre || 'Supermercado La Esperanza'}
         </Text>
-        <Text variant="bodySmall" style={styles.subtitulo}>
-          Configura la información general y el límite de crédito por defecto para tus clientes.
+        <Chip
+          icon="check-circle"
+          style={{ backgroundColor: '#e8f5e9' }}
+          textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
+        >
+          Synced
+        </Chip>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text variant="headlineMedium" style={[styles.titulo, { color: colors.text }]}>
+          Ajustes y Configuración
         </Text>
 
-        <Card style={styles.card} mode="elevated">
+        {/* Tarjeta 1: Store Info */}
+        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="outlined">
           <Card.Content>
-            <Text variant="titleMedium" style={styles.cardTitle}>
+            <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.text }]}>
               Información de la Tienda
             </Text>
             <Divider style={styles.divider} />
@@ -110,26 +128,26 @@ export const ConfiguracionScreen: React.FC = () => {
               label="Nombre de la Tienda *"
               value={nombre}
               onChangeText={setNombre}
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="store" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              right={nombre ? <TextInput.Icon icon="close" onPress={() => setNombre('')} /> : undefined}
             />
 
             <TextInput
               label="Nombre del Propietario *"
               value={nombrePropietario}
               onChangeText={setNombrePropietario}
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="account" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              right={nombrePropietario ? <TextInput.Icon icon="close" onPress={() => setNombrePropietario('')} /> : undefined}
             />
 
             <TextInput
@@ -137,13 +155,13 @@ export const ConfiguracionScreen: React.FC = () => {
               value={documentoPropietario}
               onChangeText={setDocumentoPropietario}
               keyboardType="numeric"
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="card-account-details" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              right={documentoPropietario ? <TextInput.Icon icon="close" onPress={() => setDocumentoPropietario('')} /> : undefined}
             />
 
             <TextInput
@@ -151,13 +169,13 @@ export const ConfiguracionScreen: React.FC = () => {
               value={telefono}
               onChangeText={setTelefono}
               keyboardType="phone-pad"
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="phone" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              right={telefono ? <TextInput.Icon icon="close" onPress={() => setTelefono('')} /> : undefined}
             />
 
             <TextInput
@@ -167,44 +185,45 @@ export const ConfiguracionScreen: React.FC = () => {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="email" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              right={correo ? <TextInput.Icon icon="close" onPress={() => setCorreo('')} /> : undefined}
             />
 
             <TextInput
               label="Dirección (opcional)"
               value={direccion}
               onChangeText={setDireccion}
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="map-marker" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              right={direccion ? <TextInput.Icon icon="close" onPress={() => setDireccion('')} /> : undefined}
             />
 
             <TextInput
               label="Ciudad / Municipio (opcional)"
               value={ciudad}
               onChangeText={setCiudad}
-              textColor="#ffffff"
-              contentStyle={{ color: '#ffffff' }}
-              activeOutlineColor="#bb86fc"
-              outlineColor="#555555"
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
               mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="city" color="#bb86fc" />}
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              right={ciudad ? <TextInput.Icon icon="close" onPress={() => setCiudad('')} /> : undefined}
             />
           </Card.Content>
         </Card>
 
-        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="elevated">
+        {/* Tarjeta 2: Credit Policies */}
+        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="outlined">
           <Card.Content>
             <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.text }]}>
               Políticas de Crédito
@@ -222,33 +241,26 @@ export const ConfiguracionScreen: React.FC = () => {
               outlineColor={colors.border}
               mode="outlined"
               style={[styles.input, { backgroundColor: colors.inputBackground }]}
-              left={<TextInput.Icon icon="shield-alert-outline" color={colors.primary} />}
+              left={<TextInput.Affix text="$ " />}
+              right={limitePredeterminado ? <TextInput.Icon icon="close" onPress={() => setLimitePredeterminado('')} /> : undefined}
             />
-            <Text variant="bodySmall" style={{ color: colors.textSecondary, marginTop: 4 }}>
-              Este límite se aplicará a todos los clientes nuevos a menos que se defina un límite personalizado.
-            </Text>
           </Card.Content>
         </Card>
 
-        {/* Sección Tema Oscuro / Claro */}
-        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="elevated">
+        {/* Tarjeta 3: Appearance */}
+        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="outlined">
           <Card.Content>
             <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.text }]}>
-              Apariencia de la Aplicación
+              Apariencia (Appearance)
             </Text>
             <Divider style={styles.divider} />
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Text style={{ fontSize: 22 }}>{isDarkMode ? '🌙' : '☀️'}</Text>
-                <View>
-                  <Text variant="bodyLarge" style={{ color: colors.text, fontWeight: '600' }}>
-                    {isDarkMode ? 'Modo Oscuro' : 'Modo Claro'}
-                  </Text>
-                  <Text variant="bodySmall" style={{ color: colors.textSecondary }}>
-                    {isDarkMode ? 'Interfaz oscura relajante para la vista' : 'Interfaz clara de alto contraste'}
-                  </Text>
-                </View>
+                <Text style={{ fontSize: 20 }}>{isDarkMode ? '🌙' : '☀️'}</Text>
+                <Text variant="bodyMedium" style={{ color: colors.text, fontWeight: '600' }}>
+                  Modo Oscuro / Modo Claro
+                </Text>
               </View>
 
               <Switch value={isDarkMode} onValueChange={toggleTheme} color={colors.primary} />
@@ -264,7 +276,8 @@ export const ConfiguracionScreen: React.FC = () => {
 
         <Button
           mode="contained"
-          buttonColor="#6200ee"
+          buttonColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+          textColor={isDarkMode ? '#000000' : '#ffffff'}
           icon="content-save"
           onPress={handleGuardar}
           loading={guardando}
@@ -274,16 +287,12 @@ export const ConfiguracionScreen: React.FC = () => {
           Guardar Cambios
         </Button>
 
-        <Card style={[styles.card, { backgroundColor: '#181818', marginTop: 10 }]} mode="outlined">
-          <Card.Content style={{ alignItems: 'center' }}>
-            <Text variant="labelLarge" style={{ color: '#bb86fc', fontWeight: 'bold' }}>
-              Gestor Digital de Fiados — Versión {APP_VERSION}
-            </Text>
-            <Text variant="bodySmall" style={{ color: '#777', marginTop: 2 }}>
-              Build: {APP_BUILD_DATE}
-            </Text>
-          </Card.Content>
-        </Card>
+        {/* Footer Version Stitch */}
+        <View style={styles.footerVersion}>
+          <Text variant="bodySmall" style={{ color: colors.textSecondary, textAlign: 'center' }}>
+            Version v{APP_VERSION} • Build {APP_BUILD_DATE.replace(/[- :]/g, '').substring(0, 8)}
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -292,45 +301,58 @@ export const ConfiguracionScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+  },
+  topHeaderBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 36,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  storeNameHeader: {
+    color: '#6200ee',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 40,
+    padding: 16,
+    paddingBottom: 40,
   },
   titulo: {
-    color: '#bb86fc',
     fontWeight: 'bold',
-  },
-  subtitulo: {
-    color: '#b0bec5',
     marginBottom: 16,
   },
   card: {
-    backgroundColor: '#1e1e1e',
-    marginBottom: 16,
+    marginBottom: 14,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   cardTitle: {
-    color: '#ffffff',
-    fontWeight: '600',
+    fontWeight: 'bold',
+    marginBottom: 6,
   },
   divider: {
     marginVertical: 10,
-    backgroundColor: '#333',
   },
   input: {
     marginBottom: 10,
-    backgroundColor: '#121212',
+    borderRadius: 8,
   },
   btnGuardar: {
-    borderRadius: 8,
+    borderRadius: 12,
+    marginTop: 8,
     paddingVertical: 4,
-    marginBottom: 30,
+  },
+  footerVersion: {
+    marginTop: 20,
+    alignItems: 'center',
   },
 });
