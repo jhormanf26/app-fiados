@@ -17,6 +17,7 @@ export class TiendaRepository {
       nombre: row.nombre,
       nombrePropietario: row.nombre_propietario,
       documentoPropietario: row.documento_propietario,
+      clave: row.clave ?? undefined,
       telefono: row.telefono,
       correo: row.correo,
       direccion: row.direccion ?? undefined,
@@ -44,11 +45,12 @@ export class TiendaRepository {
       };
 
       await db.runAsync(
-        `UPDATE tiendas SET nombre = ?, nombre_propietario = ?, documento_propietario = ?, telefono = ?, correo = ?, direccion = ?, ciudad = ?, limite_credito_predeterminado = ?, fecha_actualizacion = ? WHERE id = ?`,
+        `UPDATE tiendas SET nombre = ?, nombre_propietario = ?, documento_propietario = ?, clave = ?, telefono = ?, correo = ?, direccion = ?, ciudad = ?, limite_credito_predeterminado = ?, fecha_actualizacion = ? WHERE id = ?`,
         [
           actualizada.nombre,
           actualizada.nombrePropietario,
           actualizada.documentoPropietario,
+          actualizada.clave ?? null,
           actualizada.telefono,
           actualizada.correo,
           actualizada.direccion ?? null,
@@ -65,18 +67,20 @@ export class TiendaRepository {
       const nuevaTienda: Tienda = {
         id: generarUUID(),
         ...datosTienda,
+        clave: datosTienda.clave || datosTienda.documentoPropietario,
         fechaCreacion: ahora,
         fechaActualizacion: ahora,
       };
 
       await db.runAsync(
-        `INSERT INTO tiendas (id, nombre, nombre_propietario, documento_propietario, telefono, correo, direccion, ciudad, limite_credito_predeterminado, fecha_creacion, fecha_actualizacion)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tiendas (id, nombre, nombre_propietario, documento_propietario, clave, telefono, correo, direccion, ciudad, limite_credito_predeterminado, fecha_creacion, fecha_actualizacion)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           nuevaTienda.id,
           nuevaTienda.nombre,
           nuevaTienda.nombrePropietario,
           nuevaTienda.documentoPropietario,
+          nuevaTienda.clave,
           nuevaTienda.telefono,
           nuevaTienda.correo,
           nuevaTienda.direccion ?? null,

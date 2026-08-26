@@ -10,7 +10,7 @@ export const CONFIG_SYNC = {
 type EscuchadorRed = (estaEnLinea: boolean) => void;
 
 class MotorSincronizacion {
-  private estaEnLinea: boolean = false;
+  private estaEnLinea: boolean = typeof navigator !== 'undefined' ? (navigator.onLine ?? true) : true;
   private escuchadores: Set<EscuchadorRed> = new Set();
   private estaSincronizando: boolean = false;
 
@@ -77,13 +77,12 @@ class MotorSincronizacion {
 
     await db.runAsync(
       `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
-       VALUES (?, ?, ?, ?, 'PENDIENTE', 0, ?)`,
-      [id, tipoEntidad, accion, payloadStr, fechaCreacion]
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, tipoEntidad, accion, payloadStr, 'PENDIENTE', 0, fechaCreacion]
     );
 
-    if (this.estaEnLinea) {
-      this.dispararSincronizacion();
-    }
+    // Intentar transmitir de inmediato la mutación al backend
+    this.dispararSincronizacion();
 
     return id;
   }
@@ -114,8 +113,8 @@ class MotorSincronizacion {
           };
           await db.runAsync(
             `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
-             VALUES (?, 'TIENDA', 'CREAR', ?, 'PENDIENTE', 0, ?)`,
-            [tienda.id, JSON.stringify(payload), new Date().toISOString()]
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [tienda.id, 'TIENDA', 'CREAR', JSON.stringify(payload), 'PENDIENTE', 0, new Date().toISOString()]
           );
         }
       }
@@ -139,8 +138,8 @@ class MotorSincronizacion {
           };
           await db.runAsync(
             `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
-             VALUES (?, 'CLIENTE', 'CREAR', ?, 'PENDIENTE', 0, ?)`,
-            [c.id, JSON.stringify(payload), new Date().toISOString()]
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [c.id, 'CLIENTE', 'CREAR', JSON.stringify(payload), 'PENDIENTE', 0, new Date().toISOString()]
           );
         }
       }
@@ -167,8 +166,8 @@ class MotorSincronizacion {
           };
           await db.runAsync(
             `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
-             VALUES (?, 'MOVIMIENTO', 'CREAR', ?, 'PENDIENTE', 0, ?)`,
-            [m.id, JSON.stringify(payload), new Date().toISOString()]
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [m.id, 'MOVIMIENTO', 'CREAR', JSON.stringify(payload), 'PENDIENTE', 0, new Date().toISOString()]
           );
         }
       }
@@ -195,7 +194,9 @@ class MotorSincronizacion {
    * Dispara el proceso de sincronización con el backend Spring Boot
    */
   public async dispararSincronizacion(): Promise<{ exito: boolean; procesados: number; mensaje: string }> {
+    console.log(`[MotorSincronizacion] ⚡ dispararSincronizacion invocado. Estado actual sincronizando: ${this.estaSincronizando}`);
     if (this.estaSincronizando) {
+      console.log(`[MotorSincronizacion] ⏳ Sincronización ya en curso, omitiendo ejecución simultánea.`);
       return { exito: false, procesados: 0, mensaje: 'Sincronización en curso...' };
     }
 
@@ -216,6 +217,7 @@ class MotorSincronizacion {
       }
 
       if (itemsPendientes.length === 0) {
+        console.log(`[MotorSincronizacion] ℹ️ No hay registros pendientes por enviar. Aplicación al día.`);
         this.estaSincronizando = false;
         return { exito: true, procesados: 0, mensaje: 'La aplicación ya está al día.' };
       }
@@ -232,10 +234,10 @@ class MotorSincronizacion {
 
         return {
           id: item.id,
-          tipoEntidad: item.tipoEntidad,
+          tipoEntidad: item.tipoEntidad || item.tipo_entidad,
           operacion: item.accion,
           payload: payloadObj,
-          fechaCreacion: item.fechaCreacion,
+          fechaCreacion: item.fechaCreacion || item.fecha_creacion,
         };
       });
 
@@ -331,16 +333,133 @@ class MotorSincronizacion {
   }
 
   /**
+   * Realiza la descarga inicial o restauración completa (Pull Sync) desde la nube hacia la BD SQLite local.
+   */
+  public async descargarDatosServidor(documentoPropietario: string, clave?: string): Promise<{ exito: boolean; mensajeError?: string }> {
+    try {
+      const docLimpio = documentoPropietario.trim();
+      const claveParam = clave ? `?clave=${encodeURIComponent(clave.trim())}` : '';
+      const urlFinal = `${CONFIG_SYNC.BACKEND_URL}/sync/pull/${encodeURIComponent(docLimpio)}${claveParam}`;
+
+      console.log(`[MotorSincronizacion] ⬇️ Iniciando Pull Sync desde ${urlFinal}`);
+
+      const response = await fetch(urlFinal, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const dataErr = await response.json().catch(() => null);
+        const msgErr = dataErr?.mensaje || dataErr?.message || 'No se encontró la tienda o la contraseña ingresada es incorrecta.';
+        return { exito: false, mensajeError: msgErr };
+      }
+
+      const data = await response.json();
+      if (!data.exito || !data.tienda) {
+        return { exito: false, mensajeError: data.mensaje || 'No se encontraron datos válidos de la tienda.' };
+      }
+
+      const db = obtenerBaseDatos();
+      const ahoraIso = new Date().toISOString();
+      const t = data.tienda;
+
+      await db.withTransactionAsync(async () => {
+        // 1. Sembrar Tienda
+        await db.runAsync(
+          `INSERT OR REPLACE INTO tiendas (id, nombre, nombre_propietario, documento_propietario, telefono, correo, direccion, ciudad, limite_credito_predeterminado, fecha_creacion, fecha_actualizacion, ultima_sincronizacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            t.id,
+            t.nombre,
+            t.nombrePropietario || t.nombre_propietario || 'Propietario',
+            t.documentoPropietario || t.documento_propietario || docLimpio,
+            t.telefono || '',
+            t.correo || '',
+            t.direccion || '',
+            t.ciudad || '',
+            t.limiteCreditoPredeterminado || t.limite_credito_predeterminado || 100000,
+            t.fechaCreacion || t.fecha_creacion || ahoraIso,
+            t.fechaActualizacion || t.fecha_actualizacion || ahoraIso,
+            ahoraIso,
+          ]
+        );
+
+        // 2. Sembrar Clientes
+        if (Array.isArray(data.clientes)) {
+          for (const c of data.clientes) {
+            await db.runAsync(
+              `INSERT OR REPLACE INTO clientes (id, tienda_id, numero_documento, nombre, telefono, correo, notificaciones_autorizadas, correo_verificado, limite_credito_personalizado, saldo_actual, fecha_creacion, fecha_actualizacion)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                c.id,
+                c.tiendaId || c.tienda_id || t.id,
+                c.numeroDocumento || c.numero_documento,
+                c.nombre,
+                c.telefono || '',
+                c.correo || '',
+                c.notificacionesAutorizadas ? 1 : 0,
+                c.correoVerificado ? 1 : 0,
+                c.limiteCreditoPersonalizado || null,
+                c.saldoActual || 0,
+                c.fechaCreacion || c.fecha_creacion || ahoraIso,
+                c.fechaActualizacion || c.fecha_actualizacion || ahoraIso,
+              ]
+            );
+          }
+        }
+
+        // 3. Sembrar Movimientos
+        if (Array.isArray(data.movimientos)) {
+          for (const m of data.movimientos) {
+            await db.runAsync(
+              `INSERT OR REPLACE INTO movimientos (id, tienda_id, cliente_id, tipo, monto, descripcion, saldo_anterior, nuevo_saldo, estado_sincronizacion, fecha_creacion, fecha_sincronizacion)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                m.id,
+                m.tiendaId || m.tienda_id || t.id,
+                m.clienteId || m.cliente_id,
+                m.tipo,
+                m.monto,
+                m.descripcion || '',
+                m.saldoAnterior || 0,
+                m.nuevoSaldo || 0,
+                'SINCRONIZADO',
+                m.fechaCreacion || m.fecha_creacion || ahoraIso,
+                ahoraIso,
+              ]
+            );
+          }
+        }
+      });
+
+      console.log(`[MotorSincronizacion] ✅ Pull Sync completado exitosamente para tienda ${t.nombre}. Clientes: ${data.clientes?.length || 0}, Movimientos: ${data.movimientos?.length || 0}`);
+      this.estaEnLinea = true;
+      this.notificarEscuchadores(true);
+      return { exito: true };
+    } catch (e: any) {
+      console.warn('[MotorSincronizacion] ⚠️ Error en descargarDatosServidor (Pull Sync):', e);
+      return { exito: false, mensajeError: e.message || 'Error de conexión con el servidor.' };
+    }
+  }
+
+  /**
    * Obtiene el resumen del estado de sincronización
    */
   public async obtenerResumen(): Promise<ResumenSincronizacion> {
     const db = obtenerBaseDatos();
-    const resultado = await db.getFirstAsync<{ count: number }>(
-      `SELECT COUNT(*) as count FROM cola_sincronizacion WHERE estado = 'PENDIENTE'`
+    const resCola = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM cola_sincronizacion WHERE estado = 'PENDIENTE' OR estado = 'ERROR'`
+    );
+    const resMovs = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM movimientos WHERE estado_sincronizacion = 'PENDIENTE' OR estado_sincronizacion IS NULL`
     );
 
+    const countCola = resCola?.count ?? 0;
+    const countMovs = resMovs?.count ?? 0;
+    const pendientesCount = Math.max(countCola, countMovs);
+
     return {
-      pendientesCount: resultado?.count ?? 0,
+      pendientesCount,
       estaEnLinea: this.estaEnLinea,
     };
   }

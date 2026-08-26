@@ -87,7 +87,7 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
   async runAsync(sql: string, params: any[] = []): Promise<any> {
     const cleanSql = sql.trim().toUpperCase();
 
-    if (cleanSql.startsWith('INSERT INTO TIENDAS')) {
+    if (cleanSql.includes('TIENDAS') && (cleanSql.includes('INSERT') || cleanSql.includes('REPLACE'))) {
       const tienda = {
         id: params[0],
         nombre: params[1],
@@ -117,7 +117,7 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
         existente.limite_credito_predeterminado = params[7];
         existente.fecha_actualizacion = params[8];
       }
-    } else if (cleanSql.startsWith('INSERT INTO CLIENTES')) {
+    } else if (cleanSql.includes('CLIENTES') && (cleanSql.includes('INSERT') || cleanSql.includes('REPLACE'))) {
       const cliente = {
         id: params[0],
         tienda_id: params[1],
@@ -154,7 +154,7 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
         existente.limite_credito_personalizado = params[6];
         existente.fecha_actualizacion = params[7];
       }
-    } else if (cleanSql.startsWith('INSERT INTO MOVIMIENTOS')) {
+    } else if (cleanSql.includes('MOVIMIENTOS') && (cleanSql.includes('INSERT') || cleanSql.includes('REPLACE'))) {
       const es10Params = params.length >= 10;
       const tipoVal = es10Params
         ? params[3]
@@ -178,7 +178,15 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
         estado_sincronizacion: estadoSyncVal,
         fecha_creacion: fechaCreacionVal,
       };
+      this.tablas.movimientos = this.tablas.movimientos.filter((m) => m.id !== mov.id);
       this.tablas.movimientos.unshift(mov);
+    } else if (cleanSql.includes('UPDATE MOVIMIENTOS SET ESTADO_SINCRONIZACION')) {
+      const movId = params[params.length - 1];
+      const existente = this.tablas.movimientos.find((m) => m.id === movId);
+      if (existente) {
+        existente.estado_sincronizacion = params[0];
+        existente.fecha_sincronizacion = params[1];
+      }
     } else if (cleanSql.startsWith('UPDATE MOVIMIENTOS SET TIPO')) {
       const movId = params[params.length - 1];
       const existente = this.tablas.movimientos.find((m) => m.id === movId);
@@ -189,17 +197,34 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
         existente.nuevo_saldo = params[2];
         existente.estado_sincronizacion = 'PENDIENTE';
       }
-    } else if (cleanSql.startsWith('INSERT INTO COLA_SINCRONIZACION')) {
+    } else if (cleanSql.includes('COLA_SINCRONIZACION') && (cleanSql.includes('INSERT') || cleanSql.includes('REPLACE'))) {
+      const es7Params = params.length >= 7;
       const q = {
         id: params[0],
         tipo_entidad: params[1],
         accion: params[2],
         payload: params[3],
-        estado: params[4],
-        numero_reintentos: params[5],
-        fecha_creacion: params[6],
+        estado: es7Params ? params[4] : 'PENDIENTE',
+        numero_reintentos: es7Params ? params[5] : 0,
+        fecha_creacion: es7Params ? params[6] : params[4] || new Date().toISOString(),
       };
+      this.tablas.cola_sincronizacion = this.tablas.cola_sincronizacion.filter((item) => item.id !== q.id);
       this.tablas.cola_sincronizacion.push(q);
+    } else if (cleanSql.includes('DELETE FROM COLA_SINCRONIZACION')) {
+      if (cleanSql.includes('WHERE ID = ?')) {
+        const delId = params[0];
+        this.tablas.cola_sincronizacion = this.tablas.cola_sincronizacion.filter((q) => q.id !== delId);
+      } else {
+        this.tablas.cola_sincronizacion = [];
+      }
+    } else if (cleanSql.includes('UPDATE COLA_SINCRONIZACION')) {
+      const errId = params[params.length - 1];
+      const qItem = this.tablas.cola_sincronizacion.find((q) => q.id === errId);
+      if (qItem) {
+        qItem.estado = 'ERROR';
+        qItem.mensaje_error = params[0];
+        qItem.numero_reintentos = (qItem.numero_reintentos || 0) + 1;
+      }
     }
 
     this.guardarStorage();
@@ -239,6 +264,9 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
     }
 
     if (cleanSql.includes('FROM MOVIMIENTOS')) {
+      if (cleanSql.includes('ESTADO_SINCRONIZACION')) {
+        return this.tablas.movimientos.filter((m) => m.estado_sincronizacion === 'PENDIENTE' || !m.estado_sincronizacion) as unknown as T[];
+      }
       const clienteId = params[0];
       const resultado = this.tablas.movimientos.filter((m) => m.cliente_id === clienteId);
       return resultado as unknown as T[];
@@ -284,9 +312,14 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
       return (mov ?? null) as unknown as T | null;
     }
 
-    if (cleanSql.includes('COUNT(*) AS COUNT FROM COLA_SINCRONIZACION')) {
-      const count = this.tablas.cola_sincronizacion.filter((q) => q.estado === 'PENDIENTE').length;
-      return { count } as unknown as T;
+    if (cleanSql.includes('FROM COLA_SINCRONIZACION')) {
+      if (cleanSql.includes('COUNT(*)')) {
+        const count = this.tablas.cola_sincronizacion.filter((q) => q.estado === 'PENDIENTE').length;
+        return { count } as unknown as T;
+      }
+      const qId = params[0];
+      const qItem = this.tablas.cola_sincronizacion.find((q) => q.id === qId && q.estado === 'PENDIENTE');
+      return (qItem ?? null) as unknown as T | null;
     }
 
     return null;

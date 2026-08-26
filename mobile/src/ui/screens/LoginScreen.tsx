@@ -132,7 +132,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             style={styles.btnLogin}
             contentStyle={{ paddingVertical: 6 }}
           >
-            Iniciar Sesión
+            {cargando ? 'Sincronizando Tienda...' : 'Iniciar Sesión'}
           </Button>
 
           {/* Divider o espacio */}

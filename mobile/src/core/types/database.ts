@@ -13,6 +13,7 @@ export interface Tienda {
   nombre: string;
   nombrePropietario: string;
   documentoPropietario: string;
+  clave?: string;
   telefono: string;
   correo: string;
   direccion?: string;

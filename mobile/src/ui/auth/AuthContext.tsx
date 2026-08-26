@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
+import { motorSincronizacion } from '../../core/sync/syncEngine';
 import { Tienda } from '../../core/types/database';
 
 interface AuthContextData {
@@ -49,24 +50,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (documento: string, clave?: string): Promise<boolean> => {
+    const docLimpio = documento.trim();
+    const docIngresado = docLimpio.toLowerCase();
+    const claveIngresada = clave ? clave.trim() : '';
+
     let t = await tiendaRepository.obtenerTienda();
-    if (!t) {
-      // Si no existe tienda, creamos la predeterminada para que siempre se pueda ingresar en demo
-      t = await tiendaRepository.guardarTienda({
-        nombre: 'Supermercado La Esperanza',
-        nombrePropietario: 'Carlos Mendoza',
-        documentoPropietario: documento || '1098765432',
-        telefono: '3001234567',
-        correo: 'tienda@laesperanza.com',
-        limiteCreditoPredeterminado: 100000,
-      });
+    const docTiendaLocal = t && t.documentoPropietario ? String(t.documentoPropietario).trim().toLowerCase() : '';
+
+    // 1. Si la tienda ya existe localmente y coincide con el documento ingresado
+    if (t && docTiendaLocal === docIngresado) {
+      // Validar clave local si la tienda tiene clave guardada
+      if (t.clave && claveIngresada && t.clave !== claveIngresada && !t.clave.startsWith('$2a$')) {
+        throw new Error('Contraseña incorrecta. Por favor verifica la clave ingresada.');
+      }
+      setTienda(t);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEY_SESSION, t.id);
+      }
+      return true;
     }
 
-    setTienda(t);
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(STORAGE_KEY_SESSION, t.id);
+    // 2. Si no coincide o no existe localmente, intentar descargar el snapshot desde la nube (Pull Sync con clave)
+    console.log(`[AuthContext] 🔍 Intentando descargar snapshot en nube para documento: ${docLimpio}`);
+    const resPull = await motorSincronizacion.descargarDatosServidor(docLimpio, claveIngresada);
+
+    if (resPull.exito) {
+      const tiendaDescargada = await tiendaRepository.obtenerTienda();
+      if (tiendaDescargada) {
+        setTienda(tiendaDescargada);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(STORAGE_KEY_SESSION, tiendaDescargada.id);
+        }
+        return true;
+      }
     }
-    return true;
+
+    // 3. Si no se pudo descargar
+    if (resPull.mensajeError) {
+      throw new Error(resPull.mensajeError);
+    }
+
+    if (!t) {
+      throw new Error(`No se encontró una tienda registrada con el NIT o Cédula '${docLimpio}'. Verifica tu conexión a internet o crea una tienda nueva.`);
+    } else {
+      throw new Error(`El NIT o Cédula '${docLimpio}' no corresponde a la tienda registrada en este dispositivo (${t.nombre}).`);
+    }
   };
 
   const logout = async () => {

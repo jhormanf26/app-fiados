@@ -8,6 +8,7 @@ export const TABLA_TIENDAS = `
     nombre TEXT NOT NULL,
     nombre_propietario TEXT NOT NULL,
     documento_propietario TEXT NOT NULL,
+    clave TEXT,
     telefono TEXT NOT NULL,
     correo TEXT NOT NULL,
     direccion TEXT,

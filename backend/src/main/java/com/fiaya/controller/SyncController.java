@@ -29,4 +29,20 @@ public class SyncController {
                 respuesta.isExito(), respuesta.getProcesados(), cantidadMutaciones);
         return ResponseEntity.ok(respuesta);
     }
+
+    @GetMapping("/pull/{documentoPropietario}")
+    public ResponseEntity<com.fiaya.dto.SyncPullResponse> obtenerSnapshotPorDocumento(
+            @PathVariable String documentoPropietario,
+            @RequestParam(required = false) String clave) {
+        log.info("📥 [SyncController] Petición GET /api/v1/sync/pull/{} recibida", documentoPropietario);
+        com.fiaya.dto.SyncPullResponse response = syncService.obtenerSnapshotTiendaPorDocumento(documentoPropietario, clave);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/pull/tienda/{tiendaId}")
+    public ResponseEntity<com.fiaya.dto.SyncPullResponse> obtenerSnapshotPorTiendaId(@PathVariable String tiendaId) {
+        log.info("📥 [SyncController] Petición GET /api/v1/sync/pull/tienda/{} recibida", tiendaId);
+        com.fiaya.dto.SyncPullResponse response = syncService.obtenerSnapshotTiendaPorId(tiendaId);
+        return ResponseEntity.ok(response);
+    }
 }

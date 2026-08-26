@@ -26,10 +26,6 @@ export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation
   const [categoria, setCategoria] = useState('Supermercado / Abarrotes');
   const [menuCategoriaVisible, setMenuCategoriaVisible] = useState(false);
   const [direccion, setDireccion] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -41,10 +37,6 @@ export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation
     }
     if (!nit.trim()) {
       setErrorText('Por favor ingresa tu NIT o Cédula.');
-      return;
-    }
-    if (password && password !== confirmPassword) {
-      setErrorText('Las contraseñas no coinciden.');
       return;
     }
     if (!aceptaTerminos) {
@@ -202,49 +194,13 @@ export const RegistroTiendaScreen: React.FC<{ navigation: any }> = ({ navigation
             left={<TextInput.Icon icon="map-marker-outline" color={colors.textSecondary} />}
           />
 
-          <TextInput
-            label="Contraseña"
-            value={password}
-            onChangeText={setPassword}
-            mode="outlined"
-            secureTextEntry={!showPassword}
-            activeOutlineColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-            outlineColor={colors.border}
-            textColor={colors.text}
-            contentStyle={{ color: colors.text }}
-            style={[styles.input, { backgroundColor: colors.inputBackground }]}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textSecondary}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                color={colors.textSecondary}
-                onPress={() => setShowPassword(!showPassword)}
-              />
-            }
-          />
-
-          <TextInput
-            label="Confirmar Contraseña"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            mode="outlined"
-            secureTextEntry={!showConfirmPassword}
-            activeOutlineColor={isDarkMode ? '#bb86fc' : '#6200ee'}
-            outlineColor={colors.border}
-            textColor={colors.text}
-            contentStyle={{ color: colors.text }}
-            style={[styles.input, { backgroundColor: colors.inputBackground }]}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textSecondary}
-            right={
-              <TextInput.Icon
-                icon={showConfirmPassword ? 'eye-off' : 'eye'}
-                color={colors.textSecondary}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              />
-            }
-          />
+          {/* Banner Informativo sobre Contraseña Inicial */}
+          <View style={[styles.infoBanner, { backgroundColor: isDarkMode ? 'rgba(187, 134, 252, 0.1)' : 'rgba(98, 0, 238, 0.08)' }]}>
+            <IconButton icon="information" iconColor={isDarkMode ? '#bb86fc' : '#6200ee'} size={22} style={{ margin: 0 }} />
+            <Text variant="bodySmall" style={[styles.infoBannerText, { color: colors.text }]}>
+              <Text style={{ fontWeight: 'bold' }}>Contraseña inicial:</Text> Tu contraseña temporal será tu mismo <Text style={{ fontWeight: 'bold' }}>NIT o Cédula</Text>. Podrás cambiarla en cualquier momento desde <Text style={{ fontWeight: 'bold' }}>Ajustes</Text>.
+            </Text>
+          </View>
 
           {/* Checkbox Términos y Condiciones */}
           <TouchableOpacity
@@ -358,6 +314,17 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 12,
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  infoBannerText: {
+    flex: 1,
+    lineHeight: 16,
   },
   termsBox: {
     flexDirection: 'row',

@@ -17,6 +17,8 @@
 - **Componente Dinámico `<SyncHeaderBadge />`:** Sustituido el Chip hardcoded estático `"Synced"` por un indicador reactivo que refleja en tiempo real los estados `Sin Conexión` (offline/red fallida), `Pendientes (N)` (con conteo de la cola Outbox) y `Sincronizado`.
 - **Actualización de Estado en SQLite:** Al recibir ACK `SINCRONIZADO` del servidor, el motor móvil actualiza `movimientos.estado_sincronizacion = 'SINCRONIZADO'` en la BD SQLite local.
 - **Sistema de Observabilidad y Logging:** Implementado logging detallado estructurado con payloads JSON stringificados en `syncEngine.ts` (móvil) y Lombok `@Slf4j` en `SyncController.java` y `SyncService.java` (backend Spring Boot).
+- **Sincronización Bidireccional Híbrida (Push & Pull Sync):** Implementados endpoints `GET /api/v1/sync/pull/{documento}` y `GET /api/v1/sync/pull/tienda/{tiendaId}` en Spring Boot, y el método `descargarDatosServidor()` en `syncEngine.ts` que permite restaurar/descargar todo el catálogo de tienda, clientes y movimientos en un celular nuevo al ingresar con el NIT/Cédula, manteniendo el soporte Offline-First continuo en SQLite.
+- **Autenticación y Encriptación de Contraseñas con BCrypt:** Implementada encriptación unidireccional de contraseñas de tiendas con Spring Security `BCryptPasswordEncoder`. Registro simplificado donde la clave temporal inicial es el mismo NIT/Cédula (con aviso informativo) y sección de "Cambiar Contraseña" en `ConfiguracionScreen.tsx`.
 
 ## Recent Progress
 - Cambiada la marca oficial de la aplicación a **FiaYa** en todas las pantallas y archivos de configuración.
@@ -24,4 +26,5 @@
 - Creado el componente reutilizable `SyncHeaderBadge.tsx` e integrado en `InicioScreen`, `ClientesScreen`, `DetalleClienteScreen` y `ConfiguracionScreen`.
 - Actualizado `syncEngine.ts` con chequeo proactivo inicial de red (`NetInfo.fetch()`), actualización explícita de SQLite y consola con payloads JSON.
 - Agregados logs `@Slf4j` en `SyncController` y `SyncService` para auditar la recepción de mutaciones y su guardado en la base de datos MySQL.
-- Ejecutadas pruebas de integración backend (`SyncServiceTest`) con 100% de éxito en JDK 21 y chequeo de compilación TypeScript (`tsc --noEmit`) con 0 errores.
+- Implementado flujo completo de Sincronización Bidireccional (Push & Pull Sync) con autenticación BCrypt, registro simplificado (contraseña por defecto = NIT) y cambio de contraseña en Ajustes.
+- Validada compilación TypeScript (`tsc --noEmit`) con 0 errores.

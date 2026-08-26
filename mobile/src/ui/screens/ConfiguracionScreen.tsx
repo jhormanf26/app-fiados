@@ -25,6 +25,12 @@ export const ConfiguracionScreen: React.FC = () => {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Estados para cambio de contraseña
+  const [nuevaClave, setNuevaClave] = useState('');
+  const [confirmarClave, setConfirmarClave] = useState('');
+  const [mostrarNuevasClaves, setMostrarNuevasClaves] = useState(false);
+  const [guardandoClave, setGuardandoClave] = useState(false);
+
   useEffect(() => {
     cargarTienda();
   }, []);
@@ -82,6 +88,35 @@ export const ConfiguracionScreen: React.FC = () => {
       setError(err.message || 'Error al guardar la configuración.');
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const handleCambiarClave = async () => {
+    if (!nuevaClave.trim()) {
+      Alert.alert('Error', 'Por favor ingresa la nueva contraseña.');
+      return;
+    }
+    if (nuevaClave.trim() !== confirmarClave.trim()) {
+      Alert.alert('Error', 'La nueva contraseña y la confirmación no coinciden.');
+      return;
+    }
+
+    setGuardandoClave(true);
+    try {
+      if (tienda) {
+        await tiendaRepository.guardarTienda({
+          ...tienda,
+          clave: nuevaClave.trim(),
+        });
+        setNuevaClave('');
+        setConfirmarClave('');
+        Alert.alert('Éxito', 'Tu contraseña ha sido actualizada correctamente. Se encriptará y sincronizará con la nube al conectar a internet.');
+        await cargarTienda();
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Error al actualizar la contraseña.');
+    } finally {
+      setGuardandoClave(false);
     }
   };
 
@@ -252,7 +287,68 @@ export const ConfiguracionScreen: React.FC = () => {
           </Card.Content>
         </Card>
 
-        {/* Tarjeta 3: Appearance */}
+        {/* Tarjeta 3: Seguridad (Cambiar Contraseña) */}
+        <Card style={[styles.card, { backgroundColor: colors.card }]} mode="outlined">
+          <Card.Content>
+            <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.text }]}>
+              Seguridad (Cambiar Contraseña)
+            </Text>
+            <Divider style={styles.divider} />
+
+            <Text variant="bodySmall" style={{ color: colors.textSecondary, marginBottom: 10 }}>
+              Puedes cambiar la contraseña de acceso a tu tienda. Si la dejas como está, tu clave seguirá siendo tu NIT/Cédula.
+            </Text>
+
+            <TextInput
+              label="Nueva Contraseña"
+              value={nuevaClave}
+              onChangeText={setNuevaClave}
+              secureTextEntry={!mostrarNuevasClaves}
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
+              mode="outlined"
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.textSecondary}
+              right={
+                <TextInput.Icon
+                  icon={mostrarNuevasClaves ? 'eye-off' : 'eye'}
+                  onPress={() => setMostrarNuevasClaves(!mostrarNuevasClaves)}
+                />
+              }
+            />
+
+            <TextInput
+              label="Confirmar Nueva Contraseña"
+              value={confirmarClave}
+              onChangeText={setConfirmarClave}
+              secureTextEntry={!mostrarNuevasClaves}
+              textColor={colors.text}
+              contentStyle={{ color: colors.text }}
+              activeOutlineColor={colors.primary}
+              outlineColor={colors.border}
+              mode="outlined"
+              style={[styles.input, { backgroundColor: colors.inputBackground }]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <Button
+              mode="outlined"
+              textColor={isDarkMode ? '#bb86fc' : '#6200ee'}
+              style={{ borderColor: isDarkMode ? '#bb86fc' : '#6200ee', marginTop: 4 }}
+              onPress={handleCambiarClave}
+              loading={guardandoClave}
+              disabled={guardandoClave}
+            >
+              Actualizar Contraseña
+            </Button>
+          </Card.Content>
+        </Card>
+
+        {/* Tarjeta 4: Appearance */}
         <Card style={[styles.card, { backgroundColor: colors.card }]} mode="outlined">
           <Card.Content>
             <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.text }]}>

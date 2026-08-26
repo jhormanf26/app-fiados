@@ -7,6 +7,7 @@ import com.fiaya.repository.MovimientoRepository;
 import com.fiaya.repository.TiendaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class SyncService {
     private final TiendaRepository tiendaRepository;
     private final ClienteRepository clienteRepository;
     private final MovimientoRepository movimientoRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public SyncBatchResponse procesarLoteSincronizacion(SyncBatchRequest request) {
@@ -67,6 +69,74 @@ public class SyncService {
                 .build();
     }
 
+    /**
+     * Obtiene el snapshot completo de una tienda validando su documento y contraseña ingresada.
+     */
+    @Transactional(readOnly = true)
+    public SyncPullResponse obtenerSnapshotTiendaPorDocumento(String documentoPropietario, String claveIngresada) {
+        if (documentoPropietario == null || documentoPropietario.trim().isEmpty()) {
+            throw new IllegalArgumentException("El documento del propietario no puede estar vacío");
+        }
+
+        String docLimpio = documentoPropietario.trim();
+        log.info("🔍 [SyncService] Buscando snapshot de tienda para documento: '{}'", docLimpio);
+
+        TiendaEntity tienda = tiendaRepository.findByDocumentoPropietario(docLimpio)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró ninguna tienda registrada con el documento '" + docLimpio + "'."));
+
+        // Validar contraseña
+        if (claveIngresada != null && !claveIngresada.trim().isEmpty()) {
+            String claveLimpia = claveIngresada.trim();
+            if (tienda.getClave() != null && !tienda.getClave().isEmpty()) {
+                if (!passwordEncoder.matches(claveLimpia, tienda.getClave())) {
+                    log.warn("⛔ [SyncService] Contraseña incorrecta ingresada para Tienda ID: '{}', Documento: '{}'", tienda.getId(), docLimpio);
+                    throw new IllegalArgumentException("Contraseña incorrecta. Por favor verifica la clave ingresada.");
+                }
+            } else {
+                // Si la tienda aún no tiene clave encriptada guardada, verificar contra el NIT por defecto
+                if (!claveLimpia.equalsIgnoreCase(docLimpio) && !claveLimpia.equals(tienda.getClave())) {
+                    throw new IllegalArgumentException("Contraseña incorrecta. Por favor verifica la clave ingresada.");
+                }
+            }
+        }
+
+        return construirSnapshotRespuesta(tienda);
+    }
+
+    /**
+     * Obtiene el snapshot completo de una tienda por su ID de entidad (tienda, clientes y movimientos)
+     */
+    @Transactional(readOnly = true)
+    public SyncPullResponse obtenerSnapshotTiendaPorId(String tiendaId) {
+        if (tiendaId == null || tiendaId.trim().isEmpty()) {
+            throw new IllegalArgumentException("El ID de tienda no puede estar vacío");
+        }
+
+        log.info("🔍 [SyncService] Buscando snapshot de tienda para Tienda ID: '{}'", tiendaId);
+
+        TiendaEntity tienda = tiendaRepository.findById(tiendaId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró ninguna tienda con el ID '" + tiendaId + "'."));
+
+        return construirSnapshotRespuesta(tienda);
+    }
+
+    private SyncPullResponse construirSnapshotRespuesta(TiendaEntity tienda) {
+        List<ClienteEntity> clientes = clienteRepository.findByTiendaId(tienda.getId());
+        List<MovimientoEntity> movimientos = movimientoRepository.findByTiendaIdOrderByFechaCreacionDesc(tienda.getId());
+
+        log.info("📦 [SyncService] Snapshot generado para Tienda ID: '{}' (Clientes: {}, Movimientos: {})",
+                tienda.getId(), clientes.size(), movimientos.size());
+
+        return SyncPullResponse.builder()
+                .exito(true)
+                .mensaje("Snapshot descargado exitosamente.")
+                .tienda(tienda)
+                .clientes(clientes)
+                .movimientos(movimientos)
+                .fechaServidor(LocalDateTime.now().toString())
+                .build();
+    }
+
     private void procesarItem(SyncItemDto item) {
         String tipo = item.getTipoEntidad();
         Map<String, Object> payload = item.getPayload();
@@ -82,19 +152,37 @@ public class SyncService {
         }
     }
 
+    private String aString(Object o) {
+        if (o == null) return null;
+        return String.valueOf(o);
+    }
+
     private void procesarTienda(String id, Map<String, Object> p) {
         TiendaEntity tienda = tiendaRepository.findById(id)
                 .orElse(TiendaEntity.builder().id(id).build());
 
-        if (p.containsKey("nombre")) tienda.setNombre((String) p.get("nombre"));
-        if (p.containsKey("nombrePropietario")) tienda.setNombrePropietario((String) p.get("nombrePropietario"));
-        if (p.containsKey("documentoPropietario")) tienda.setDocumentoPropietario((String) p.get("documentoPropietario"));
-        if (p.containsKey("telefono")) tienda.setTelefono((String) p.get("telefono"));
-        if (p.containsKey("correo")) tienda.setCorreo((String) p.get("correo"));
-        if (p.containsKey("direccion")) tienda.setDireccion((String) p.get("direccion"));
-        if (p.containsKey("ciudad")) tienda.setCiudad((String) p.get("ciudad"));
+        if (p.containsKey("nombre")) tienda.setNombre(aString(p.get("nombre")));
+        if (p.containsKey("nombrePropietario")) tienda.setNombrePropietario(aString(p.get("nombrePropietario")));
+        if (p.containsKey("documentoPropietario")) tienda.setDocumentoPropietario(aString(p.get("documentoPropietario")));
+        if (p.containsKey("telefono")) tienda.setTelefono(aString(p.get("telefono")));
+        if (p.containsKey("correo")) tienda.setCorreo(aString(p.get("correo")));
+        if (p.containsKey("direccion")) tienda.setDireccion(aString(p.get("direccion")));
+        if (p.containsKey("ciudad")) tienda.setCiudad(aString(p.get("ciudad")));
         if (p.containsKey("limiteCreditoPredeterminado")) {
             tienda.setLimiteCreditoPredeterminado(((Number) p.get("limiteCreditoPredeterminado")).doubleValue());
+        }
+
+        // Manejo de contraseña (Clave):
+        if (p.containsKey("clave") && p.get("clave") != null) {
+            String rawClave = aString(p.get("clave")).trim();
+            if (rawClave.startsWith("$2a$") || rawClave.startsWith("$2b$")) {
+                tienda.setClave(rawClave);
+            } else {
+                tienda.setClave(passwordEncoder.encode(rawClave));
+            }
+        } else if (tienda.getClave() == null && tienda.getDocumentoPropietario() != null) {
+            // Contraseña por defecto = NIT/Cédula
+            tienda.setClave(passwordEncoder.encode(tienda.getDocumentoPropietario().trim()));
         }
 
         tiendaRepository.save(tienda);
@@ -105,11 +193,11 @@ public class SyncService {
         ClienteEntity cliente = clienteRepository.findById(id)
                 .orElse(ClienteEntity.builder().id(id).build());
 
-        if (p.containsKey("tiendaId")) cliente.setTiendaId((String) p.get("tiendaId"));
-        if (p.containsKey("nombre")) cliente.setNombre((String) p.get("nombre"));
-        if (p.containsKey("numeroDocumento")) cliente.setNumeroDocumento((String) p.get("numeroDocumento"));
-        if (p.containsKey("telefono")) cliente.setTelefono((String) p.get("telefono"));
-        if (p.containsKey("correo")) cliente.setCorreo((String) p.get("correo"));
+        if (p.containsKey("tiendaId")) cliente.setTiendaId(aString(p.get("tiendaId")));
+        if (p.containsKey("nombre")) cliente.setNombre(aString(p.get("nombre")));
+        if (p.containsKey("numeroDocumento")) cliente.setNumeroDocumento(aString(p.get("numeroDocumento")));
+        if (p.containsKey("telefono")) cliente.setTelefono(aString(p.get("telefono")));
+        if (p.containsKey("correo")) cliente.setCorreo(aString(p.get("correo")));
         if (p.containsKey("notificacionesAutorizadas")) {
             cliente.setNotificacionesAutorizadas((Boolean) p.get("notificacionesAutorizadas"));
         }
@@ -137,14 +225,14 @@ public class SyncService {
 
         MovimientoEntity mov = MovimientoEntity.builder()
                 .id(id)
-                .tiendaId((String) p.get("tiendaId"))
-                .clienteId((String) p.get("clienteId"))
-                .tipo(TipoMovimiento.valueOf(((String) p.get("tipo")).toUpperCase()))
+                .tiendaId(aString(p.get("tiendaId")))
+                .clienteId(aString(p.get("clienteId")))
+                .tipo(TipoMovimiento.valueOf(aString(p.get("tipo")).toUpperCase()))
                 .monto(((Number) p.get("monto")).doubleValue())
-                .descripcion((String) p.get("descripcion"))
+                .descripcion(aString(p.get("descripcion")))
                 .saldoAnterior(((Number) p.get("saldoAnterior")).doubleValue())
                 .nuevoSaldo(((Number) p.get("nuevoSaldo")).doubleValue())
-                .motivoAnulacion((String) p.get("motivoAnulacion"))
+                .motivoAnulacion(aString(p.get("motivoAnulacion")))
                 .estadoSincronizacion(EstadoSincronizacion.SINCRONIZADO)
                 .build();
 

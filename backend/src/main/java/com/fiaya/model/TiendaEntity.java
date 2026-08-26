@@ -27,6 +27,9 @@ public class TiendaEntity {
     @Column(name = "documento_propietario", nullable = false, length = 50)
     private String documentoPropietario;
 
+    @Column(length = 255)
+    private String clave;
+
     @Column(nullable = false, length = 30)
     private String telefono;
 
