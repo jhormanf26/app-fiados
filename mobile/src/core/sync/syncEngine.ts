@@ -75,14 +75,14 @@ class MotorSincronizacion {
    * Asegura que todos los datos existentes en la base de datos local SQLite (tiendas, clientes y movimientos)
    * que aún no tengan registro en la cola sean auto-encolados para ser sincronizados con MySQL en Dokploy.
    */
-  public async asegurarRegistrosEnCola(): Promise<void> {
+  public async asegurarRegistrosEnCola(forzarTodo: boolean = false): Promise<void> {
     try {
       const db = obtenerBaseDatos();
 
       // 1. Asegurar Tienda
       const tienda = await db.getFirstAsync<any>(`SELECT * FROM tiendas LIMIT 1`);
       if (tienda) {
-        const existeTienda = await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${tienda.id}"%`]);
+        const existeTienda = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${tienda.id}"%`]);
         if (!existeTienda) {
           const payload = {
             id: tienda.id,
@@ -106,7 +106,7 @@ class MotorSincronizacion {
       // 2. Asegurar Clientes
       const clientes = await db.getAllAsync<any>(`SELECT * FROM clientes`);
       for (const c of clientes) {
-        const existeCliente = await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${c.id}"%`]);
+        const existeCliente = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${c.id}"%`]);
         if (!existeCliente) {
           const payload = {
             id: c.id,
@@ -131,7 +131,7 @@ class MotorSincronizacion {
       // 3. Asegurar Movimientos
       const movimientos = await db.getAllAsync<any>(`SELECT * FROM movimientos`);
       for (const m of movimientos) {
-        const existeMov = await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${m.id}"%`]);
+        const existeMov = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${m.id}"%`]);
         if (!existeMov) {
           const payload = {
             id: m.id,
@@ -163,7 +163,7 @@ class MotorSincronizacion {
     try {
       const db = obtenerBaseDatos();
       await db.runAsync(`DELETE FROM cola_sincronizacion`);
-      await this.asegurarRegistrosEnCola();
+      await this.asegurarRegistrosEnCola(true);
     } catch (e) {
       console.warn('Error al reiniciar cola:', e);
     }
@@ -180,12 +180,19 @@ class MotorSincronizacion {
 
     this.estaSincronizando = true;
     try {
-      await this.asegurarRegistrosEnCola();
+      await this.asegurarRegistrosEnCola(false);
 
       const db = obtenerBaseDatos();
-      const itemsPendientes = await db.getAllAsync<any>(
+      let itemsPendientes = await db.getAllAsync<any>(
         `SELECT id, tipo_entidad as tipoEntidad, accion, payload, estado, numero_reintentos as numeroReintentos, mensaje_error as mensajeError, fecha_creacion as fechaCreacion FROM cola_sincronizacion WHERE estado = 'PENDIENTE' ORDER BY fecha_creacion ASC LIMIT 50`
       );
+
+      if (itemsPendientes.length === 0) {
+        await this.asegurarRegistrosEnCola(true);
+        itemsPendientes = await db.getAllAsync<any>(
+          `SELECT id, tipo_entidad as tipoEntidad, accion, payload, estado, numero_reintentos as numeroReintentos, mensaje_error as mensajeError, fecha_creacion as fechaCreacion FROM cola_sincronizacion WHERE estado = 'PENDIENTE' ORDER BY fecha_creacion ASC LIMIT 50`
+        );
+      }
 
       if (itemsPendientes.length === 0) {
         this.estaSincronizando = false;
