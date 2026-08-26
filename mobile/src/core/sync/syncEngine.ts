@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { obtenerBaseDatos } from '../database/db';
 import { ItemColaSincronizacion, ResumenSincronizacion, EntidadSincronizacion, AccionSincronizacion } from '../types/database';
 import { generarUUID } from '../utils/uuid';
@@ -66,7 +67,8 @@ class MotorSincronizacion {
     payload: object
   ): Promise<string> {
     const db = obtenerBaseDatos();
-    const id = generarUUID();
+    const payloadObj = payload as any;
+    const id = payloadObj && payloadObj.id ? payloadObj.id : generarUUID();
     const fechaCreacion = new Date().toISOString();
     const payloadStr = JSON.stringify(payload);
 
@@ -74,7 +76,7 @@ class MotorSincronizacion {
     console.log(`[MotorSincronizacion] 📦 Payload encolado: ${payloadStr}`);
 
     await db.runAsync(
-      `INSERT INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
+      `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
        VALUES (?, ?, ?, ?, 'PENDIENTE', 0, ?)`,
       [id, tipoEntidad, accion, payloadStr, fechaCreacion]
     );
@@ -97,7 +99,7 @@ class MotorSincronizacion {
       // 1. Asegurar Tienda
       const tienda = await db.getFirstAsync<any>(`SELECT * FROM tiendas LIMIT 1`);
       if (tienda) {
-        const existeTienda = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${tienda.id}"%`]);
+        const existeTienda = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE id = ? AND estado = 'PENDIENTE'`, [tienda.id]);
         if (!existeTienda) {
           const payload = {
             id: tienda.id,
@@ -111,7 +113,7 @@ class MotorSincronizacion {
             limiteCreditoPredeterminado: tienda.limite_credito_predeterminado,
           };
           await db.runAsync(
-            `INSERT INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
+            `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
              VALUES (?, 'TIENDA', 'CREAR', ?, 'PENDIENTE', 0, ?)`,
             [tienda.id, JSON.stringify(payload), new Date().toISOString()]
           );
@@ -121,7 +123,7 @@ class MotorSincronizacion {
       // 2. Asegurar Clientes
       const clientes = await db.getAllAsync<any>(`SELECT * FROM clientes`);
       for (const c of clientes) {
-        const existeCliente = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${c.id}"%`]);
+        const existeCliente = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE id = ? AND estado = 'PENDIENTE'`, [c.id]);
         if (!existeCliente) {
           const payload = {
             id: c.id,
@@ -136,17 +138,21 @@ class MotorSincronizacion {
             saldoActual: c.saldo_actual,
           };
           await db.runAsync(
-            `INSERT INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
+            `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
              VALUES (?, 'CLIENTE', 'CREAR', ?, 'PENDIENTE', 0, ?)`,
             [c.id, JSON.stringify(payload), new Date().toISOString()]
           );
         }
       }
 
-      // 3. Asegurar Movimientos
-      const movimientos = await db.getAllAsync<any>(`SELECT * FROM movimientos`);
+      // 3. Asegurar Movimientos (Filtrar por estado_sincronizacion = 'PENDIENTE' o forzarTodo)
+      const queryMovs = forzarTodo
+        ? `SELECT * FROM movimientos`
+        : `SELECT * FROM movimientos WHERE estado_sincronizacion = 'PENDIENTE' OR estado_sincronizacion IS NULL`;
+      const movimientos = await db.getAllAsync<any>(queryMovs);
+
       for (const m of movimientos) {
-        const existeMov = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE payload LIKE ? AND estado = 'PENDIENTE'`, [`%"id":"${m.id}"%`]);
+        const existeMov = forzarTodo ? null : await db.getFirstAsync<any>(`SELECT id FROM cola_sincronizacion WHERE id = ? AND estado = 'PENDIENTE'`, [m.id]);
         if (!existeMov) {
           const payload = {
             id: m.id,
@@ -160,7 +166,7 @@ class MotorSincronizacion {
             motivoAnulacion: m.motivo_anulacion,
           };
           await db.runAsync(
-            `INSERT INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
+            `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
              VALUES (?, 'MOVIMIENTO', 'CREAR', ?, 'PENDIENTE', 0, ?)`,
             [m.id, JSON.stringify(payload), new Date().toISOString()]
           );
