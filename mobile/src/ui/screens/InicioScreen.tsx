@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, RefreshControl, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Text, Card, Button, Divider, Chip, ActivityIndicator, IconButton, ProgressBar } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { tiendaRepository } from '../../core/repositories/tiendaRepository';
@@ -124,10 +124,18 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const handleSincronizarManual = async () => {
     setRefrescando(true);
     try {
-      const res = await motorSincronizacion.dispararSincronizacion();
-      Alert.alert(res.exito ? '🔄 Sincronización' : '⚠️ Modo Offline', res.mensaje);
-    } catch (e) {
+      const res = await motorSincronizacion.forzarResincronizacionTotal();
+      const msg = `${res.exito ? '🔄 Sincronización Exitosa' : '⚠️ Modo Offline'}\n\n${res.mensaje}`;
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert(res.exito ? '🔄 Sincronización' : '⚠️ Modo Offline', res.mensaje);
+      }
+    } catch (e: any) {
       console.warn('Error al sincronizar:', e);
+      if (Platform.OS === 'web') {
+        window.alert(`⚠️ Error al sincronizar: ${e.message || e}`);
+      }
     } finally {
       await cargarDatos();
       setRefrescando(false);
