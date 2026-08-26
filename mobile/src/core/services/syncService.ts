@@ -1,6 +1,6 @@
 import { syncRepository } from '../repositories/syncRepository';
 
-export const BACKEND_URL = 'http://localhost:8080/api/v1';
+export const BACKEND_URL = 'https://back-fiaya.desaroollo.site/api/v1';
 
 export interface ResultadoSincronizacion {
   exito: boolean;

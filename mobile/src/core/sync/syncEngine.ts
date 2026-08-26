@@ -3,7 +3,7 @@ import { ItemColaSincronizacion, ResumenSincronizacion, EntidadSincronizacion, A
 import { generarUUID } from '../utils/uuid';
 
 export const CONFIG_SYNC = {
-  BACKEND_URL: 'http://localhost:8080/api/v1',
+  BACKEND_URL: 'https://back-fiaya.desaroollo.site/api/v1',
 };
 
 type EscuchadorRed = (estaEnLinea: boolean) => void;
