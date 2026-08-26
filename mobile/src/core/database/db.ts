@@ -184,8 +184,13 @@ class AdaptadorBaseDatosWeb implements AdaptadorBaseDatos {
       const movId = params[params.length - 1];
       const existente = this.tablas.movimientos.find((m) => m.id === movId);
       if (existente) {
-        existente.estado_sincronizacion = params[0];
-        existente.fecha_sincronizacion = params[1];
+        if (params.length >= 3) {
+          existente.estado_sincronizacion = params[0];
+          existente.fecha_sincronizacion = params[1];
+        } else {
+          existente.estado_sincronizacion = 'SINCRONIZADO';
+          existente.fecha_sincronizacion = params[0];
+        }
       }
     } else if (cleanSql.startsWith('UPDATE MOVIMIENTOS SET TIPO')) {
       const movId = params[params.length - 1];

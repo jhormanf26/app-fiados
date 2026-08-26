@@ -102,14 +102,15 @@ class MotorSincronizacion {
         if (!existeTienda) {
           const payload = {
             id: tienda.id,
-            nombre: tienda.nombre,
-            nombrePropietario: tienda.nombre_propietario,
-            documentoPropietario: tienda.documento_propietario,
-            telefono: tienda.telefono,
-            correo: tienda.correo,
-            direccion: tienda.direccion,
-            ciudad: tienda.ciudad,
-            limiteCreditoPredeterminado: tienda.limite_credito_predeterminado,
+            nombre: tienda.nombre || 'Mi Tienda FiaYa',
+            nombrePropietario: tienda.nombre_propietario || tienda.nombrePropietario || 'Propietario',
+            documentoPropietario: tienda.documento_propietario || tienda.documentoPropietario || '1098765432',
+            telefono: tienda.telefono || '3001234567',
+            correo: tienda.correo || 'tienda@fiaya.com',
+            direccion: tienda.direccion || '',
+            ciudad: tienda.ciudad || '',
+            limiteCreditoPredeterminado: tienda.limite_credito_predeterminado || tienda.limiteCreditoPredeterminado || 100000,
+            clave: tienda.clave || tienda.documento_propietario || tienda.documentoPropietario || '1098765432',
           };
           await db.runAsync(
             `INSERT OR REPLACE INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
@@ -277,8 +278,8 @@ class MotorSincronizacion {
 
             // 2. Actualizar estado_sincronizacion en tabla movimientos en SQLite si corresponde
             await db.runAsync(
-              `UPDATE movimientos SET estado_sincronizacion = 'SINCRONIZADO', fecha_sincronizacion = ? WHERE id = ?`,
-              [ahoraIso, res.id]
+              `UPDATE movimientos SET estado_sincronizacion = ?, fecha_sincronizacion = ? WHERE id = ?`,
+              ['SINCRONIZADO', ahoraIso, res.id]
             );
 
             // 3. Buscar si el id corresponde al payload de algún movimiento en la cola
@@ -288,8 +289,8 @@ class MotorSincronizacion {
                 const payloadObj = typeof itemOriginal.payload === 'string' ? JSON.parse(itemOriginal.payload) : itemOriginal.payload;
                 if (payloadObj && payloadObj.id) {
                   await db.runAsync(
-                    `UPDATE movimientos SET estado_sincronizacion = 'SINCRONIZADO', fecha_sincronizacion = ? WHERE id = ?`,
-                    [ahoraIso, payloadObj.id]
+                    `UPDATE movimientos SET estado_sincronizacion = ?, fecha_sincronizacion = ? WHERE id = ?`,
+                    ['SINCRONIZADO', ahoraIso, payloadObj.id]
                   );
                 }
               } catch (e) {

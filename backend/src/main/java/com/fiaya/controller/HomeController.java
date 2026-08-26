@@ -20,6 +20,7 @@ public class HomeController {
             "baseDeDatos", "Conectado a MySQL (FiaYa)",
             "servicios", Map.of(
                 "sincronizacion", "/api/v1/sync",
+                "sincronizacionPull", "/api/v1/sync/pull/{documentoPropietario}",
                 "consultaPublica", "/api/v1/public/cliente-consulta"
             )
         ));

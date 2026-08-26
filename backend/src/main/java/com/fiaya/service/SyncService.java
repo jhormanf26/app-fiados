@@ -161,15 +161,26 @@ public class SyncService {
         TiendaEntity tienda = tiendaRepository.findById(id)
                 .orElse(TiendaEntity.builder().id(id).build());
 
-        if (p.containsKey("nombre")) tienda.setNombre(aString(p.get("nombre")));
-        if (p.containsKey("nombrePropietario")) tienda.setNombrePropietario(aString(p.get("nombrePropietario")));
-        if (p.containsKey("documentoPropietario")) tienda.setDocumentoPropietario(aString(p.get("documentoPropietario")));
-        if (p.containsKey("telefono")) tienda.setTelefono(aString(p.get("telefono")));
-        if (p.containsKey("correo")) tienda.setCorreo(aString(p.get("correo")));
-        if (p.containsKey("direccion")) tienda.setDireccion(aString(p.get("direccion")));
-        if (p.containsKey("ciudad")) tienda.setCiudad(aString(p.get("ciudad")));
-        if (p.containsKey("limiteCreditoPredeterminado")) {
+        String nombre = p.get("nombre") != null ? aString(p.get("nombre")) : aString(p.get("nombre_tienda"));
+        String nombreProp = p.get("nombrePropietario") != null ? aString(p.get("nombrePropietario")) : aString(p.get("nombre_propietario"));
+        String docProp = p.get("documentoPropietario") != null ? aString(p.get("documentoPropietario")) : aString(p.get("documento_propietario"));
+        String tel = aString(p.get("telefono"));
+        String email = aString(p.get("correo"));
+        String dir = aString(p.get("direccion"));
+        String ciu = aString(p.get("ciudad"));
+
+        tienda.setNombre((nombre != null && !nombre.trim().isEmpty()) ? nombre.trim() : "Mi Tienda FiaYa");
+        tienda.setNombrePropietario((nombreProp != null && !nombreProp.trim().isEmpty()) ? nombreProp.trim() : "Propietario");
+        tienda.setDocumentoPropietario((docProp != null && !docProp.trim().isEmpty()) ? docProp.trim() : "1098765432");
+        tienda.setTelefono((tel != null && !tel.trim().isEmpty()) ? tel.trim() : "3000000000");
+        tienda.setCorreo((email != null && !email.trim().isEmpty()) ? email.trim() : "tienda@fiaya.com");
+        if (dir != null) tienda.setDireccion(dir);
+        if (ciu != null) tienda.setCiudad(ciu);
+
+        if (p.containsKey("limiteCreditoPredeterminado") && p.get("limiteCreditoPredeterminado") != null) {
             tienda.setLimiteCreditoPredeterminado(((Number) p.get("limiteCreditoPredeterminado")).doubleValue());
+        } else if (tienda.getLimiteCreditoPredeterminado() == null) {
+            tienda.setLimiteCreditoPredeterminado(100000.0);
         }
 
         // Manejo de contraseña (Clave):
@@ -181,7 +192,6 @@ public class SyncService {
                 tienda.setClave(passwordEncoder.encode(rawClave));
             }
         } else if (tienda.getClave() == null && tienda.getDocumentoPropietario() != null) {
-            // Contraseña por defecto = NIT/Cédula
             tienda.setClave(passwordEncoder.encode(tienda.getDocumentoPropietario().trim()));
         }
 
@@ -193,9 +203,14 @@ public class SyncService {
         ClienteEntity cliente = clienteRepository.findById(id)
                 .orElse(ClienteEntity.builder().id(id).build());
 
-        if (p.containsKey("tiendaId")) cliente.setTiendaId(aString(p.get("tiendaId")));
-        if (p.containsKey("nombre")) cliente.setNombre(aString(p.get("nombre")));
-        if (p.containsKey("numeroDocumento")) cliente.setNumeroDocumento(aString(p.get("numeroDocumento")));
+        String tiendaId = p.get("tiendaId") != null ? aString(p.get("tiendaId")) : aString(p.get("tienda_id"));
+        String nombre = aString(p.get("nombre"));
+        String doc = p.get("numeroDocumento") != null ? aString(p.get("numeroDocumento")) : aString(p.get("numero_documento"));
+
+        if (tiendaId != null) cliente.setTiendaId(tiendaId);
+        cliente.setNombre(nombre != null ? nombre : "Cliente");
+        cliente.setNumeroDocumento(doc != null ? doc : "1098765432");
+
         if (p.containsKey("telefono")) cliente.setTelefono(aString(p.get("telefono")));
         if (p.containsKey("correo")) cliente.setCorreo(aString(p.get("correo")));
         if (p.containsKey("notificacionesAutorizadas")) {
@@ -207,8 +222,10 @@ public class SyncService {
         if (p.containsKey("limiteCreditoPersonalizado") && p.get("limiteCreditoPersonalizado") != null) {
             cliente.setLimiteCreditoPersonalizado(((Number) p.get("limiteCreditoPersonalizado")).doubleValue());
         }
-        if (p.containsKey("saldoActual")) {
+        if (p.containsKey("saldoActual") && p.get("saldoActual") != null) {
             cliente.setSaldoActual(((Number) p.get("saldoActual")).doubleValue());
+        } else if (p.containsKey("saldo_actual") && p.get("saldo_actual") != null) {
+            cliente.setSaldoActual(((Number) p.get("saldo_actual")).doubleValue());
         }
 
         clienteRepository.save(cliente);
@@ -223,15 +240,20 @@ public class SyncService {
             return;
         }
 
+        String tId = p.get("tiendaId") != null ? aString(p.get("tiendaId")) : aString(p.get("tienda_id"));
+        String cId = p.get("clienteId") != null ? aString(p.get("clienteId")) : aString(p.get("cliente_id"));
+        String sAnt = p.get("saldoAnterior") != null ? aString(p.get("saldoAnterior")) : aString(p.get("saldo_anterior"));
+        String sNue = p.get("nuevoSaldo") != null ? aString(p.get("nuevoSaldo")) : aString(p.get("nuevo_saldo"));
+
         MovimientoEntity mov = MovimientoEntity.builder()
                 .id(id)
-                .tiendaId(aString(p.get("tiendaId")))
-                .clienteId(aString(p.get("clienteId")))
+                .tiendaId(tId)
+                .clienteId(cId)
                 .tipo(TipoMovimiento.valueOf(aString(p.get("tipo")).toUpperCase()))
                 .monto(((Number) p.get("monto")).doubleValue())
                 .descripcion(aString(p.get("descripcion")))
-                .saldoAnterior(((Number) p.get("saldoAnterior")).doubleValue())
-                .nuevoSaldo(((Number) p.get("nuevoSaldo")).doubleValue())
+                .saldoAnterior(sAnt != null ? Double.parseDouble(sAnt) : 0.0)
+                .nuevoSaldo(sNue != null ? Double.parseDouble(sNue) : 0.0)
                 .motivoAnulacion(aString(p.get("motivoAnulacion")))
                 .estadoSincronizacion(EstadoSincronizacion.SINCRONIZADO)
                 .build();
