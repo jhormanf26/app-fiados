@@ -6,6 +6,7 @@ import com.fiaya.repository.ClienteRepository;
 import com.fiaya.repository.MovimientoRepository;
 import com.fiaya.repository.TiendaRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SyncService {
@@ -27,16 +29,25 @@ public class SyncService {
         List<SyncItemResponse> resultados = new ArrayList<>();
         int procesados = 0;
 
-        if (request.getMutaciones() != null) {
+        if (request != null && request.getMutaciones() != null) {
+            log.info("🔄 [SyncService] Procesando lote de {} mutaciones para Tienda ID: '{}'",
+                    request.getMutaciones().size(), request.getTiendaId());
+
             for (SyncItemDto item : request.getMutaciones()) {
                 try {
+                    log.info("  👉 Procesando Item ID: '{}', Tipo: '{}', Operación: '{}'",
+                            item.getId(), item.getTipoEntidad(), item.getOperacion());
+
                     procesarItem(item);
+
                     resultados.add(SyncItemResponse.builder()
                             .id(item.getId())
                             .estado("SINCRONIZADO")
                             .build());
                     procesados++;
+                    log.info("  ✅ Item ID: '{}' sincronizado exitosamente en MySQL.", item.getId());
                 } catch (Exception e) {
+                    log.error("  ❌ Error al procesar Item ID: '{}'. Mensaje: {}", item.getId(), e.getMessage(), e);
                     resultados.add(SyncItemResponse.builder()
                             .id(item.getId())
                             .estado("ERROR")
@@ -44,6 +55,8 @@ public class SyncService {
                             .build());
                 }
             }
+        } else {
+            log.warn("⚠️ [SyncService] Petición de sincronización recibida vacía o con mutaciones nulas.");
         }
 
         return SyncBatchResponse.builder()
@@ -85,6 +98,7 @@ public class SyncService {
         }
 
         tiendaRepository.save(tienda);
+        log.info("  🏬 [MySQL Save] Tienda guardada exitosamente ID: '{}', Nombre: '{}'", id, tienda.getNombre());
     }
 
     private void procesarCliente(String id, Map<String, Object> p) {
@@ -110,11 +124,14 @@ public class SyncService {
         }
 
         clienteRepository.save(cliente);
+        log.info("  👤 [MySQL Save] Cliente guardado exitosamente ID: '{}', Nombre: '{}', Saldo Actual: ${}",
+                id, cliente.getNombre(), cliente.getSaldoActual());
     }
 
     private void procesarMovimiento(String id, Map<String, Object> p) {
         // Garantía de Idempotencia: Si el UUID del movimiento ya existe en MySQL, no volver a insertar
         if (movimientoRepository.existsById(id)) {
+            log.info("  ⏩ [Idempotencia] Movimiento ID: '{}' ya existe en MySQL, omitiendo duplicado.", id);
             return;
         }
 
@@ -132,11 +149,14 @@ public class SyncService {
                 .build();
 
         movimientoRepository.save(mov);
+        log.info("  💵 [MySQL Save] Movimiento guardado exitosamente ID: '{}', Tipo: {}, Monto: ${}, Cliente ID: '{}'",
+                id, mov.getTipo(), mov.getMonto(), mov.getClienteId());
 
         // Actualizar saldo del cliente en MySQL
         clienteRepository.findById(mov.getClienteId()).ifPresent(c -> {
             c.setSaldoActual(mov.getNuevoSaldo());
             clienteRepository.save(c);
+            log.info("  🔄 [MySQL Update] Saldo de Cliente ID: '{}' actualizado a ${}", c.getId(), c.getSaldoActual());
         });
     }
 }

@@ -7,6 +7,7 @@ import { tiendaRepository } from '../../core/repositories/tiendaRepository';
 import { Cliente, Movimiento, Tienda } from '../../core/types/database';
 import { NuevoMovimientoModal } from '../modals/NuevoMovimientoModal';
 import { CrearClienteModal } from '../modals/CrearClienteModal';
+import { SyncHeaderBadge } from '../components/SyncHeaderBadge';
 import { useAppTheme } from '../theme/ThemeContext';
 
 function obtenerIniciales(nombre: string): string {
@@ -136,13 +137,7 @@ export const DetalleClienteScreen: React.FC<{ route: any; navigation: any }> = (
         <Text variant="titleMedium" style={{ color: '#6200ee', fontWeight: 'bold', fontSize: 18 }}>
           FiaYa
         </Text>
-        <Chip
-          icon="check-circle"
-          style={{ backgroundColor: '#e8f5e9' }}
-          textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
-        >
-          Synced
-        </Chip>
+        <SyncHeaderBadge onSyncComplete={cargarDatos} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>

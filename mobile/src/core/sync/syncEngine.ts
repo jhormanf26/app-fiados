@@ -20,10 +20,22 @@ class MotorSincronizacion {
   private iniciarEscuchadorRed() {
     try {
       const NetInfo = require('@react-native-community/netinfo').default;
+
+      // Verificación proactiva inicial del estado de red
+      NetInfo.fetch().then((state: any) => {
+        const enLinea = Boolean(state.isConnected && state.isInternetReachable !== false);
+        this.estaEnLinea = enLinea;
+        this.notificarEscuchadores(enLinea);
+        console.log(`[MotorSincronizacion] 🌐 Estado inicial de red detectado: ${enLinea ? 'ONLINE ✅' : 'OFFLINE ⚠️'}`);
+      }).catch((err: any) => {
+        console.warn('[MotorSincronizacion] Error al obtener estado inicial de NetInfo:', err);
+      });
+
       NetInfo.addEventListener((state: any) => {
         const enLinea = Boolean(state.isConnected && state.isInternetReachable !== false);
         if (this.estaEnLinea !== enLinea) {
           this.estaEnLinea = enLinea;
+          console.log(`[MotorSincronizacion] 🌐 Cambio en el estado de red: ${enLinea ? 'ONLINE ✅' : 'OFFLINE ⚠️'}`);
           this.notificarEscuchadores(enLinea);
           if (enLinea) {
             this.dispararSincronizacion();
@@ -57,6 +69,9 @@ class MotorSincronizacion {
     const id = generarUUID();
     const fechaCreacion = new Date().toISOString();
     const payloadStr = JSON.stringify(payload);
+
+    console.log(`[MotorSincronizacion] ➕ Encolando mutación: [${tipoEntidad}] [${accion}] ID: ${id}`);
+    console.log(`[MotorSincronizacion] 📦 Payload encolado: ${payloadStr}`);
 
     await db.runAsync(
       `INSERT INTO cola_sincronizacion (id, tipo_entidad, accion, payload, estado, numero_reintentos, fecha_creacion)
@@ -199,7 +214,7 @@ class MotorSincronizacion {
         return { exito: true, procesados: 0, mensaje: 'La aplicación ya está al día.' };
       }
 
-      console.log(`[MotorSincronizacion] Enviando ${itemsPendientes.length} registros al backend Spring Boot...`);
+      console.log(`[MotorSincronizacion] 🚀 Iniciando envío de batch. Registros pendientes en cola: ${itemsPendientes.length}`);
 
       const mutaciones = itemsPendientes.map((item) => {
         let payloadObj = {};
@@ -218,30 +233,66 @@ class MotorSincronizacion {
         };
       });
 
+      const bodyJSON = JSON.stringify({
+        tiendaId: 'tienda-local',
+        mutaciones,
+      });
+
+      console.log(`[MotorSincronizacion] 📤 Enviando POST ${CONFIG_SYNC.BACKEND_URL}/sync`);
+      console.log(`[MotorSincronizacion] 📄 Body Payload: ${bodyJSON}`);
+
       const response = await fetch(`${CONFIG_SYNC.BACKEND_URL}/sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          tiendaId: 'tienda-local',
-          mutaciones,
-        }),
+        body: bodyJSON,
       });
+
+      console.log(`[MotorSincronizacion] 📥 Respuesta recibida HTTP STATUS: ${response.status}`);
 
       if (!response.ok) {
         throw new Error(`El servidor backend respondió con código HTTP ${response.status}`);
       }
 
       const data = await response.json();
+      console.log(`[MotorSincronizacion] 📊 Respuesta Servidor Data: ${JSON.stringify(data)}`);
+
       let procesadosExitosos = 0;
+      const ahoraIso = new Date().toISOString();
 
       if (data.resultados && Array.isArray(data.resultados)) {
         for (const res of data.resultados) {
           if (res.estado === 'SINCRONIZADO') {
+            // 1. Eliminar de cola local
             await db.runAsync(`DELETE FROM cola_sincronizacion WHERE id = ?`, [res.id]);
+
+            // 2. Actualizar estado_sincronizacion en tabla movimientos en SQLite si corresponde
+            await db.runAsync(
+              `UPDATE movimientos SET estado_sincronizacion = 'SINCRONIZADO', fecha_sincronizacion = ? WHERE id = ?`,
+              [ahoraIso, res.id]
+            );
+
+            // 3. Buscar si el id corresponde al payload de algún movimiento en la cola
+            const itemOriginal = itemsPendientes.find((i) => i.id === res.id);
+            if (itemOriginal && itemOriginal.tipoEntidad === 'MOVIMIENTO') {
+              try {
+                const payloadObj = typeof itemOriginal.payload === 'string' ? JSON.parse(itemOriginal.payload) : itemOriginal.payload;
+                if (payloadObj && payloadObj.id) {
+                  await db.runAsync(
+                    `UPDATE movimientos SET estado_sincronizacion = 'SINCRONIZADO', fecha_sincronizacion = ? WHERE id = ?`,
+                    [ahoraIso, payloadObj.id]
+                  );
+                }
+              } catch (e) {
+                // ignorar si no hay id interno
+              }
+            }
+
+            console.log(`[MotorSincronizacion] ✅ Item sincronizado exitosamente en SQLite y Nube: ID=${res.id}`);
             procesadosExitosos++;
           } else {
+            console.warn(`[MotorSincronizacion] ❌ Error reportado por servidor para Item ID ${res.id}: ${res.mensajeError}`);
             await db.runAsync(
               `UPDATE cola_sincronizacion SET estado = 'ERROR', mensaje_error = ?, numero_reintentos = numero_reintentos + 1 WHERE id = ?`,
               [res.mensajeError || 'Error en servidor', res.id]
@@ -250,8 +301,9 @@ class MotorSincronizacion {
         }
       }
 
-      const ahoraIso = new Date().toISOString();
       await db.runAsync(`UPDATE tiendas SET ultima_sincronizacion = ?`, [ahoraIso]);
+      this.estaEnLinea = true;
+      this.notificarEscuchadores(true);
 
       return {
         exito: true,
@@ -259,7 +311,9 @@ class MotorSincronizacion {
         mensaje: `Sincronización exitosa: ${procesadosExitosos} registros guardados en la nube.`,
       };
     } catch (error: any) {
-      console.warn('[MotorSincronizacion] Modo Offline: No se pudo conectar con el backend:', error.message || error);
+      console.warn('[MotorSincronizacion] ⚠️ Modo Offline: No se pudo conectar con el backend:', error.message || error);
+      this.estaEnLinea = false;
+      this.notificarEscuchadores(false);
       return {
         exito: false,
         procesados: 0,

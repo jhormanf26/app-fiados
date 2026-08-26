@@ -9,6 +9,7 @@ import { motorSincronizacion } from '../../core/sync/syncEngine';
 import { Tienda, ResumenSincronizacion } from '../../core/types/database';
 import { APP_VERSION } from '../../core/constants/version';
 import { NuevoMovimientoModal } from '../modals/NuevoMovimientoModal';
+import { SyncHeaderBadge } from '../components/SyncHeaderBadge';
 import { useAppTheme } from '../theme/ThemeContext';
 
 function formatearTiempoHace(isoString: string): string {
@@ -180,14 +181,7 @@ export const InicioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
 
-        <Chip
-          icon="check-circle"
-          onPress={handleSincronizarManual}
-          style={{ backgroundColor: '#e8f5e9' }}
-          textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
-        >
-          Synced
-        </Chip>
+        <SyncHeaderBadge onSyncComplete={cargarDatos} />
       </View>
 
       <ScrollView

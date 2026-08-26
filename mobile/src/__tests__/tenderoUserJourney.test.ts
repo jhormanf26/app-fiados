@@ -159,7 +159,12 @@ async function probarFlujoTenderoCompleto() {
   console.log('\n=== ¡TODAS LAS PRUEBAS DEL FLUJO TENDERO Y SINCRONIZACIÓN SE EJECUTARON CON ÉXITO! ===');
 }
 
+declare const process: any;
+
 probarFlujoTenderoCompleto().catch((err) => {
   console.error('\n❌ ERROR EN LA PRUEBA DE FLUJO:', err);
-  process.exit(1);
+  if (typeof process !== 'undefined' && process.exit) {
+    process.exit(1);
+  }
 });
+

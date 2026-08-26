@@ -14,12 +14,14 @@
 - **Saldo a Favor (Credit Balance):** Permitir saldos negativos (`saldoActual < 0`) cuando un cliente realiza un pago mayor a su deuda. Las compras futuras deducen automáticamente de este saldo.
 - **Cálculo de Deuda Total por Cobrar:** Suma únicamente deudas activas positivas (`saldoActual > 0`) para evitar que saldos a favor distorsionen la cartera por cobrar.
 - **Alerta de Límite Superado:** Modal interactivo de advertencia que desglosa deuda previa, nuevo fiado y exceso antes de autorizar transacciones.
-- **Filtros Temporales en Cartera:** Gráfico/Resumen de cartera interactivo con periodos (Hoy, 7 Días, 15 Días, 30 Días, Siempre).
+- **Componente Dinámico `<SyncHeaderBadge />`:** Sustituido el Chip hardcoded estático `"Synced"` por un indicador reactivo que refleja en tiempo real los estados `Sin Conexión` (offline/red fallida), `Pendientes (N)` (con conteo de la cola Outbox) y `Sincronizado`.
+- **Actualización de Estado en SQLite:** Al recibir ACK `SINCRONIZADO` del servidor, el motor móvil actualiza `movimientos.estado_sincronizacion = 'SINCRONIZADO'` en la BD SQLite local.
+- **Sistema de Observabilidad y Logging:** Implementado logging detallado estructurado con payloads JSON stringificados en `syncEngine.ts` (móvil) y Lombok `@Slf4j` en `SyncController.java` y `SyncService.java` (backend Spring Boot).
 
 ## Recent Progress
-- Cambiada la marca oficial de la aplicación a **FiaYa** en todas las pantallas y archivos de configuración (`app.json`, `LoginScreen`, `RegistroTienda`, `ConsultaCliente`, `Configuracion`, `DetalleCliente`).
-- Creada la arquitectura completa del Backend Spring Boot 3 en `backend/` con entidades JPA (`TiendaEntity`, `ClienteEntity`, `MovimientoEntity`), repositorios y servicios.
-- Desarrollado el motor de sincronización por lote idempotente `/api/v1/sync`.
-- Implementado el motor de sincronización móvil Outbox en SQLite (`syncRepository.ts`, `syncService.ts`, `syncEngine.ts`) con listeners de red automáticos NetInfo y botón manual en encabezado **`🔄 FiaYa`** / **`Synced`**.
-- Ejecutadas pruebas de integración completas (12/12 pasos exitosos) y comprobación TypeScript (0 errores).
-- Realizado commit (`8cf7383`) y push a la rama `main` en GitHub (`https://github.com/jhormanf26/app-fiados.git`).
+- Cambiada la marca oficial de la aplicación a **FiaYa** en todas las pantallas y archivos de configuración.
+- Creada la arquitectura completa del Backend Spring Boot 3 en `backend/` con entidades JPA y servicio de sincronización `/api/v1/sync`.
+- Creado el componente reutilizable `SyncHeaderBadge.tsx` e integrado en `InicioScreen`, `ClientesScreen`, `DetalleClienteScreen` y `ConfiguracionScreen`.
+- Actualizado `syncEngine.ts` con chequeo proactivo inicial de red (`NetInfo.fetch()`), actualización explícita de SQLite y consola con payloads JSON.
+- Agregados logs `@Slf4j` en `SyncController` y `SyncService` para auditar la recepción de mutaciones y su guardado en la base de datos MySQL.
+- Ejecutadas pruebas de integración backend (`SyncServiceTest`) con 100% de éxito en JDK 21 y chequeo de compilación TypeScript (`tsc --noEmit`) con 0 errores.

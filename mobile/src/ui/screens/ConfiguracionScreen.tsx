@@ -7,6 +7,7 @@ import { APP_VERSION, APP_BUILD_DATE } from '../../core/constants/version';
 import { useAppTheme } from '../theme/ThemeContext';
 import { useAuth } from '../auth/AuthContext';
 import { formatearMonedaInput, desformatearMonedaInput } from '../../core/utils/currency';
+import { SyncHeaderBadge } from '../components/SyncHeaderBadge';
 
 export const ConfiguracionScreen: React.FC = () => {
   const { isDarkMode, toggleTheme, colors } = useAppTheme();
@@ -112,13 +113,7 @@ export const ConfiguracionScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <Chip
-          icon="check-circle"
-          style={{ backgroundColor: '#e8f5e9' }}
-          textStyle={{ color: '#2e7d32', fontWeight: 'bold', fontSize: 11 }}
-        >
-          Synced
-        </Chip>
+        <SyncHeaderBadge onSyncComplete={cargarTienda} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
